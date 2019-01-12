@@ -63,7 +63,8 @@ frontend k8sapi
 backend k8sapi
     mode tcp
     balance roundrobin
-    option tcp-check
+    option httpchk GET /healthz HTTP/1.0
+    http-check expect status 200
     timeout connect        10s
     timeout server          1m
     ${HAPROXY_K8S_BACKENDS}
