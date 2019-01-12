@@ -31,6 +31,17 @@ You can execute the tool via the wrapper, for examples:
 ./bin/histk8s.sh _kubectl get nodes
 ```
 
+### Debugging
+
+To enter a node, use the wrapper script:
+
+```
+./bin/hisk8s.sh _ssh_list
+./bin/hisk8s.sh _ssh 111
+```
+
+You can also use different aliases provided in the output of `_ssh_list`.
+
 ### Tear down
 
 ```
