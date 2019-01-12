@@ -16,3 +16,4 @@ etc/kube-proxy-config.yaml
 etc/vboxdns.service
 etc/.kube/
 etc/coredns.yaml.in
+etc/encryption-config.yaml.in
