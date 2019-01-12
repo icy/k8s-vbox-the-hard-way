@@ -21,7 +21,13 @@ And yes I have a script to automate the process.
 
 ```
 ./bin/hisk8s.sh _test
+```
+
+### Running smoke tests
+
+```
 ./bin/hisk8s.sh _smoke_tests
+./bin/hisk8s.sh _smoke_test_deploy_app
 ```
 
 `kubectl` configuration will be stored under `./etc/.kube/config`.
