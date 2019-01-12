@@ -42,7 +42,7 @@ WORKER_START=140
 SSH_PORT_PREFIX="10"
 VBOX_PRIVATE_NETWORK_NAME="hisk8s"
 
-_vagrant_do() {
+_vagrant() {
   mkdir -pv "$D_MACHINES"
   for _node in $MACHINES; do
     mkdir -pv "$D_MACHINES/$_node/"
@@ -828,8 +828,8 @@ _remote_install_kubectl() {
 
 _test() {
   set -xe
-  _vagrant_do destroy -f
-  _vagrant_do up
+  _vagrant destroy -f
+  _vagrant up
   _k8s_bootstrapping_ca
   _k8s_bootstrapping_lb
   _k8s_bootstrapping_etcd

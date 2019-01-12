@@ -53,7 +53,7 @@ You can also use different aliases provided in the output of `_ssh_list`.
 ### Tear down
 
 ```
-./bin/hisk8s.sh _vagrant_do destroy -f
+./bin/hisk8s.sh _vagrant destroy -f
 ```
 
 ## In-depth docs, details and customizations
