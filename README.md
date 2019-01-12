@@ -34,7 +34,7 @@ And yes I have a script to automate the process.
 You can execute the tool via the wrapper, for examples:
 
 ```
-./bin/histk8s.sh _kubectl get nodes
+./bin/hisk8s.sh _kubectl get nodes
 NAME         STATUS   ROLES    AGE    VERSION
 worker-141   Ready    <none>   100s   v1.12.0
 ```
