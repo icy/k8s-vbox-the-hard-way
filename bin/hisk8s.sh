@@ -245,7 +245,7 @@ _k8s_ca_distrubute() {
   done
 }
 
-_k8s_bootstraping_ca() {
+_k8s_bootstrapping_ca() {
   rm -fv "$D_CA/"/*.*
   mkdir -pv "$D_CA/"
   cp -fv "$D_ETC/ca/"*.* "$D_CA/"
@@ -830,7 +830,7 @@ _test() {
   set -xe
   _vagrant_do destroy -f
   _vagrant_do up
-  _k8s_bootstraping_ca
+  _k8s_bootstrapping_ca
   _k8s_bootstrapping_lb
   _k8s_bootstrapping_etcd
   _k8s_encryption_key_gen
