@@ -1,0 +1,22 @@
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+authentication:
+  anonymous:
+    enabled: false
+  webhook:
+    enabled: true
+  x509:
+    clientCAFile: "/var/lib/kubernetes/ca.pem"
+authorization:
+  mode: Webhook
+clusterDomain: "cluster.local"
+clusterDNS:
+  - "${IP_K8S_CLUSTER_COREDNS}"
+podCIDR: "${IP_POD_RANGE}"
+# The resolvConf configuration is used to avoid loops when using CoreDNS
+# for service discovery on systems running systemd-resolved.
+# FIXME: The following path is only valid on Ubuntu system.
+resolvConf: "/run/resolvconf/resolv.conf"
+runtimeRequestTimeout: "15m"
+tlsCertFile: "/var/lib/kubelet/${_node}.pem"
+tlsPrivateKeyFile: "/var/lib/kubelet/${_node}-key.pem"

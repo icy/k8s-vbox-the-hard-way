@@ -1,0 +1,14 @@
+[Unit]
+Description=vboxdns
+
+[Service]
+ExecStart=/usr/bin/ruby /home/vagrant/dns_resolver.rb
+TimeoutStartSec=2
+Restart=on-failure
+StartLimitBurst=3
+StartLimitInterval=60s
+#EnvironmentFile=/home/vagrant/vboxdns.env
+Environment="IP_PREFIX=${IP_PREFIX}"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+ca/*
+etc/envsubst.list
+etc/vboxdns.service
+etc/haproxy.cfg
+caches/*
+machines/*
+etc/ssh.config
+etc/ssh.known_hosts
+etc/worker-*
+etc/controller-*
+etc/containerd.config.toml
+etc/haproxy.cfg
+etc/kube-apiserver.service
+etc/kube-controller-manager.service
+etc/kube-proxy-config.yaml
+etc/vboxdns.service
+etc/.kube/
