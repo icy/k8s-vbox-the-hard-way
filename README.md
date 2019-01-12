@@ -11,7 +11,7 @@ And yes I have a script to automate the process.
 * Vagrant
 * https://github.com/cloudflare/cfssl (Please install all tools with
   `go get -u github.com/cloudflare/cfssl/cmd/...` and modify your `PATH`
-  environmant to recognize these new tools installed in `$GOPATH/bin`.)
+  environment variable to recognize these new tools installed in `$GOPATH/bin`.)
 * `kubectl` command line
 
 [the-hard-way]: https://github.com/kelseyhightower/kubernetes-the-hard-way
