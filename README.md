@@ -29,6 +29,8 @@ You can execute the tool via the wrapper, for examples:
 
 ```
 ./bin/histk8s.sh _kubectl get nodes
+NAME         STATUS   ROLES    AGE    VERSION
+worker-141   Ready    <none>   100s   v1.12.0
 ```
 
 ### Debugging
@@ -48,4 +50,6 @@ You can also use different aliases provided in the output of `_ssh_list`.
 ./bin/hisk8s.sh _vagrant_do destroy -f
 ```
 
-[the-hard-way]: https://github.com/kelseyhightower/kubernetes-the-hard-way
+## In-depth docs, details and customizations
+
+TODO
