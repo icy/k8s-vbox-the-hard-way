@@ -702,7 +702,7 @@ _envsubst() {
   fi
 }
 
-_k8s_bootstraping_coredns() {
+_k8s_bootstrapping_coredns() {
   # F_YAML="https://storage.googleapis.com/kubernetes-the-hard-way/coredns.yaml"
   # Downloaded -> etc/coredns.yaml.in
   _envsubst "$D_ETC/coredns.yaml"{.in,} || return
@@ -846,7 +846,7 @@ _test() {
   _k8s_bootstrapping_worker
   _k8s_worker_routing
   _k8s_bootstrapping_kubectl_config
-  _k8s_bootstraping_coredns
+  _k8s_bootstrapping_coredns
 }
 
 env_setup
