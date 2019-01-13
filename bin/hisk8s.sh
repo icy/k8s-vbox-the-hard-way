@@ -9,12 +9,19 @@ set -a # export all variables....
 set -u # break if there is any unbound variable
 
 # Fast
+# Number of workers to start.
 N_WORKERS=1
+# Number of controllers. In production environment it's often 3.
+# We start with 2 to see how bad things can happen.
 N_CONTROLLERS=2
 
 # Slow
+# Memory size of worker and controller. For testing purpose we can
+# use smaller size for workers. For conconller smaller size (<1024)
+# may lead to OOM issue.
 MEM_WORKER="1024"
 MEM_CONTROLLER="1024"
+# We use haproxy in front of our controllers. 256MB is big for them.
 MEM_LB="256"
 
 # Slower
