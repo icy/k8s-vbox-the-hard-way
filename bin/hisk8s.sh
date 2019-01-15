@@ -514,9 +514,9 @@ _k8s_bootstrapping_etcd() {
 
 _k8s_encryption_key_gen() {
   F_CONFIG="$D_ETC/encryption-config.yaml"
-  ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
 
   if [[ ! -f "$F_CONFIG" ]]; then
+    ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
     _envsubst "$F_CONFIG.in" "$F_CONFIG" || return 1
   else
     echo >&2 ":: File $F_CONFIG does exist. Skip updating."
