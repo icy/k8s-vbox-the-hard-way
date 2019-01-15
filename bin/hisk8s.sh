@@ -127,6 +127,14 @@ env_setup() {
   F_SSH_CONFIG="$D_ETC/ssh.config"
   F_SSH_KNOWN_HOSTS="$D_ETC/ssh.known_hosts"
 
+  # Load custom environments
+
+  if [[ -f "$D_ETC/custom.env.sh" ]]; then
+    source "$D_ETC/custom.env.sh" || return
+  else
+    echo ":: Custom environment file not found: $D_ETC/custom.env.sh"
+  fi
+
   n="$N_WORKERS"
   WORKERS=""
   while (( n )); do
@@ -142,12 +150,6 @@ env_setup() {
   done
 
   MACHINES="$LOAD_BALANCER $WORKERS $CONTROLLERS"
-
-  if [[ -f "$D_ETC/custom.env.sh" ]]; then
-    source "$D_ETC/custom.env.sh" || return
-  else
-    echo ":: Custom environment file not found: $D_ETC/custom.env.sh"
-  fi
 }
 
 _ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes.
