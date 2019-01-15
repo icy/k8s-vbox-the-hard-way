@@ -19,6 +19,8 @@ And yes I have a script to automate the process.
 
 ### Bootstrap the cluster
 
+Edit some basic settings in `./etc/custom.env.sh` and start the cluster:
+
 ```
 ./bin/hisk8s.sh _test
 ```
