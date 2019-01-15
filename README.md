@@ -41,6 +41,8 @@ NAME         STATUS   ROLES    AGE    VERSION
 worker-141   Ready    <none>   100s   v1.12.0
 ```
 
+(You can also use the shortcut `./bin/_kubectl`)
+
 ### Debugging
 
 To enter a node, use the wrapper script:
