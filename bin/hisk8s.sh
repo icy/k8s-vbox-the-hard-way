@@ -124,6 +124,11 @@ env_setup() {
   D_CA="$D_ROOT/ca/"
   D_CACHES="$D_ROOT/caches/"
 
+  if [[ ! -f "$D_BIN/hisk8s.sh" ]]; then
+    echo >&2 ":: hisk8s script not found in $D_BIN, or $D_ROOT/$D_BIN is invalid."
+    return
+  fi
+
   F_SSH_CONFIG="$D_ETC/ssh.config"
   F_SSH_KNOWN_HOSTS="$D_ETC/ssh.known_hosts"
 
@@ -158,13 +163,14 @@ _ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes.
 
 _ssh_worker() { #public: Execute command on all workers. E.g, `_ssh_worker hostname`
   for _node in $WORKERS; do
+    echo >&2 ":: $_node: Executing '$@'"
     _ssh -n "$_node" "$@"
   done
 }
 
 _ssh_controller() { #public: Execute command on all controllers. E.g, `_ssh_worker hostname`
   for _node in $CONTROLLERS; do
-    echo ":: Executing $@ on $_node"
+    echo >&2 ":: $_node: Executing '$@'"
     _ssh -n "$_node" "$@"
   done
 }
@@ -661,6 +667,7 @@ _k8s_bootstrapping_worker() {
     sudo cp -fuv kube-proxy.kubeconfig /var/lib/kube-proxy/kubeconfig
     sudo cp -fuv kube-proxy-config.yaml /var/lib/kube-proxy/kube-proxy-config.yaml
     sudo cp -fuv kube-proxy.service  /etc/systemd/system/kube-proxy.service
+    sudo cp -fuv ${HOSTNAME}.kube-proxy.service  /etc/systemd/system/kube-proxy.service
 
     sudo systemctl daemon-reload
     sudo systemctl enable containerd kubelet kube-proxy
@@ -684,7 +691,9 @@ _k8s_bootstrapping_worker() {
     echo "::"
     echo ":: Bootstrapping worker $_node"
     IP_POD_RANGE="${IP_K8S_POD_RANGE_PREFIX}.${_node#*-}.0/24"
+    IP_NODEPORT_RANGES="${IP_PREFIX}.${_node#*-}/32"
 
+    _envsubst "$D_ETC/kube-proxy.service.in"          "$D_ETC/$_node.kube-proxy.service"
     _envsubst "$D_ETC/10-bridge.conf.in"          "$D_ETC/$_node.10-bridge.conf"
     _envsubst "$D_ETC/kube-proxy-config.yaml.in"     "$D_ETC/kube-proxy-config.yaml"
     _envsubst "$D_ETC/kubelet-config.yaml.in"     "$D_ETC/$_node.kubelet-config.yaml"
@@ -699,6 +708,7 @@ _k8s_bootstrapping_worker() {
       "$D_ETC/kube-proxy.service" \
       "$D_ETC/${_node}.10-bridge.conf" \
       "$D_ETC/99-loopback.conf" \
+      "$D_ETC/$_node.kube-proxy.service" \
       $_node:~/
 
     _execute_remote : "$_node"
@@ -887,10 +897,20 @@ _me_list_public_methods() {
   grep -E '^_.+ #public' "$0" | sed -e 's|() { #public||g' | column -s : -t | sort
 }
 
+# Basic support
+_basename="$(basename "$0")"
+case "$_basename" in
+"_kubectl"|"_helm")
+  _command="$_basename"
+  env_setup || exit
+  $_command "$@"
+  exit
+  ;;
+esac
+
 case "${1:-}" in
 ""|"-h"|"--help") _me_list_public_methods; exit ;;
 esac
 
 env_setup
-
 "$@"
