@@ -8,54 +8,13 @@
 set -a # export all variables....
 set -u # break if there is any unbound variable
 
-# Fast
-# Number of workers to start.
-N_WORKERS=1
-# Number of controllers. In production environment it's often 3.
-# We start with 2 to see how bad things can happen.
-N_CONTROLLERS=2
-
-# Slow
-# Memory size of worker and controller. For testing purpose we can
-# use smaller size for workers. For conconller smaller size (<1024)
-# may lead to OOM issue.
-MEM_WORKER="1024"
-MEM_CONTROLLER="1024"
-# We use haproxy in front of our controllers. 256MB is big for them.
-MEM_LB="256"
-
-# Slower
-IP_K8S_CLUSTER="10.32.0.1"
-IP_K8S_CLUSTER_COREDNS="10.32.0.10"
-IP_K8S_CLUSTER_RANGE="10.32.0.0/24"
-
-IP_K8S_KUBE_PROXY_RANGE="10.11.0.0/16"
-
-IP_K8S_POD_RANGE_PREFIX="10.200"
-IP_K8S_POD_RANGE="${IP_K8S_POD_RANGE_PREFIX}.0.0/16"
-IP_DEV_NAME="enp0s8"
-
-MY_CLUSTER_NAME="hisk8s"
-
-IP_PREFIX="10.11.12"
-
-# Load balancer
-IP_LB="${IP_PREFIX}.100"
-LOAD_BALANCER="lb-100"
-
-CONTROLLER_START=110
-WORKER_START=140
-
-SSH_PORT_PREFIX="10"
-VBOX_PRIVATE_NETWORK_NAME="hisk8s"
-
-_vagrant() {
+_vagrant() { #public: A wrapper for `vagrant` command. E.g, `_vagrant destroy -f` to destroy all nodes.
   mkdir -pv "$D_MACHINES"
   for _node in $MACHINES; do
     mkdir -pv "$D_MACHINES/$_node/"
     cd "$D_MACHINES/$_node/" || return
     cp -fv "$F_VAGRANTFILE" Vagrantfile
-    vagrant "$@" || return
+    HOME="$OHOME" vagrant "$@" || return
   done
 
   if [[ "${1:-}" == "up" ]]; then
@@ -86,6 +45,7 @@ _ssh_config_generate() {
     echo "  Port ${_ssh_port}"
     echo "  UserKnownHostsFile ${F_SSH_KNOWN_HOSTS}"
     echo "  StrictHostKeyChecking yes"
+    echo "  IdentityFile $OHOME/.vagrant.d/insecure_private_key"
   done
 }
 
@@ -99,13 +59,62 @@ _ssh_keyscan() {
   done
 }
 
-_ssh_list() {
+_ssh_list() { #public: List all nodes created by vagrant. Useful for `ssh`-related tasks.
   grep ^Host "$F_SSH_CONFIG"
 }
 
 ## main
 
 env_setup() {
+  # K8s and vbox environments
+
+  # Fast
+  # Number of workers to start.
+  N_WORKERS=1
+  # Number of controllers. In production environment it's often 3.
+  # We start with 2 to see how bad things can happen.
+  N_CONTROLLERS=2
+
+  # Slow
+  # Memory size of worker and controller. For testing purpose we can
+  # use smaller size for workers. For conconller smaller size (<1024)
+  # may lead to OOM issue.
+  MEM_WORKER="1024"
+  MEM_CONTROLLER="1024"
+  # We use haproxy in front of our controllers. 256MB is big for them.
+  MEM_LB="256"
+
+  # Slower
+  IP_K8S_CLUSTER="10.32.0.1"
+  # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
+  # This address is used by `kubelet`  (etc/kubelet-config.yaml.in)
+  # and also the deployment recipe (etc/coredns.yaml.in)
+  IP_K8S_CLUSTER_COREDNS="10.32.0.10"
+  IP_K8S_CLUSTER_RANGE="10.32.0.0/24"
+
+  IP_K8S_KUBE_PROXY_RANGE="10.11.0.0/16"
+
+  IP_K8S_POD_RANGE_PREFIX="10.200"
+  IP_K8S_POD_RANGE="${IP_K8S_POD_RANGE_PREFIX}.0.0/16"
+  IP_DEV_NAME="enp0s8"
+
+  MY_CLUSTER_NAME="hisk8s"
+
+  IP_PREFIX="10.11.12"
+
+  # Load balancer
+  IP_LB="${IP_PREFIX}.100"
+  LOAD_BALANCER="lb-100"
+
+  CONTROLLER_START=110
+  WORKER_START=140
+
+  SSH_PORT_PREFIX="10"
+  VBOX_PRIVATE_NETWORK_NAME="hisk8s"
+
+  # General environments
+
+  OHOME=$HOME
   D_ROOT="$(dirname "${BASH_SOURCE[0]:-}")/../"
   D_ROOT="$(cd "$D_ROOT" && pwd -P)"
   D_BIN="$D_ROOT/bin/"
@@ -133,26 +142,32 @@ env_setup() {
   done
 
   MACHINES="$LOAD_BALANCER $WORKERS $CONTROLLERS"
+
+  if [[ -f "$D_ETC/custom.env.sh" ]]; then
+    source "$D_ETC/custom.env.sh" || return
+  else
+    echo ":: Custom environment file not found: $D_ETC/custom.env.sh"
+  fi
 }
 
-_ssh() {
+_ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes.
   ssh -F "$F_SSH_CONFIG" "$@"
 }
 
-_ssh_worker() {
+_ssh_worker() { #public: Execute command on all workers. E.g, `_ssh_worker hostname`
   for _node in $WORKERS; do
     _ssh -n "$_node" "$@"
   done
 }
 
-_ssh_controller() {
+_ssh_controller() { #public: Execute command on all controllers. E.g, `_ssh_worker hostname`
   for _node in $CONTROLLERS; do
     echo ":: Executing $@ on $_node"
     _ssh -n "$_node" "$@"
   done
 }
 
-_rsync() {
+_rsync() { #public: A wrapper of `rsync` command, useful when you need to transfer file(s) to any node.
   rsync -e "ssh -F \"$F_SSH_CONFIG\"" "$@"
 }
 
@@ -712,7 +727,7 @@ _k8s_bootstrapping_coredns() {
 _k8s_bootstrapping_kubectl_config() {
   cd "$D_ROOT/ca/" || return
 
-  export HOME="$D_ROOT/etc/"
+  HOME="$D_ETC/"
 
   KUBERNETES_PUBLIC_ADDRESS="127.0.0.1"
 
@@ -732,7 +747,7 @@ _k8s_bootstrapping_kubectl_config() {
   kubectl config use-context ${MY_CLUSTER_NAME}
 }
 
-_smoke_tests() {
+_smoke_tests() { #public: Run some simple smoke tests against new cluster
   _smoke_test_lb
   _smoke_test_etcd
   _smoke_test_control_plane
@@ -740,7 +755,6 @@ _smoke_tests() {
 
 _smoke_test_deploy_app() {
   _kubectl create secret generic $MY_CLUSTER_NAME --from-literal="mykey=mydata"
-
   for _node in $CONTROLLERS; do
     _ssh -n $_node \
       "sudo ETCDCTL_API=3 etcdctl get \
@@ -748,7 +762,7 @@ _smoke_test_deploy_app() {
       --cacert=/etc/etcd/ca.pem \
       --cert=/etc/etcd/kubernetes.pem \
       --key=/etc/etcd/kubernetes-key.pem\
-      /registry/secrets/default/kubernetes-the-hard-way | hexdump -C" \
+      /registry/secrets/default/$MY_CLUSTER_NAME | hexdump -C" \
 
     break
   done
@@ -781,11 +795,12 @@ _smoke_test_control_plane() {
   curl -s -H \"Host: kubernetes.default.svc.cluster.local\" -i http://127.0.0.1/healthz >/dev/null
 }
 
-_kubectl() {
-  HOME="$D_ETC/" kubectl --context="$MY_CLUSTER_NAME" "$@"
+_kubectl() { #public: A wrapper of kubectl. E.g., `_kubectl get pods --all-namespaces`
+  HOME="$D_ETC/"
+  kubectl --context="$MY_CLUSTER_NAME" "$@"
 }
 
-_smoke_test_etcd() {
+_smoke_test_etcd() { #public: Simple smoke tests against etcd setup.
   for _node in $CONTROLLERS; do
     echo ":: etcd connective on $_node"
 
@@ -798,7 +813,7 @@ _smoke_test_etcd() {
   done
 }
 
-_smoke_test_lb() {
+_smoke_test_lb() { #public: Simple smoke tests against custom DNS and Load balancer.
   _ssh $LOAD_BALANCER "
     echo >&2 ':: Testing inside LB instance'
     curl -s -k https://localhost:6443/version
@@ -833,7 +848,25 @@ _remote_install_kubectl() {
   echo Y | sudo pacman -S kubectl
 }
 
-_test() {
+_helm() { #public: A wrapper of helm command
+  HOME="$D_ETC/"
+  helm "$@"
+}
+
+_helm_init_plugin_diff() { #public: Install diff plugin for helm
+  HOME="$D_ETC/"
+  helm plugin install https://github.com/databus23/helm-diff --version master
+}
+
+_helm_init() { #public: Install and patch `helm` settings.
+  HOME="$D_ETC/"
+  helm init
+  kubectl create serviceaccount --namespace kube-system tiller
+  kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+  kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+}
+
+_test() { #public: Default test (See README#getting-started). Create new cluster and test. (WARNING) Running cluster will be destroyed completely.
   set -xe
   _vagrant destroy -f
   _vagrant up
@@ -848,6 +881,14 @@ _test() {
   _k8s_bootstrapping_kubectl_config
   _k8s_bootstrapping_coredns
 }
+
+_me_list_public_methods() {
+  grep -E '^_.+ #public' "$0" | sed -e 's|() { #public||g' | column -s : -t | sort
+}
+
+case "${1:-}" in
+""|"-h"|"--help") _me_list_public_methods; exit ;;
+esac
 
 env_setup
 
