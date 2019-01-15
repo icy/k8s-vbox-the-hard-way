@@ -96,6 +96,8 @@ env_setup() {
 
   IP_K8S_POD_RANGE_PREFIX="10.200"
   IP_K8S_POD_RANGE="${IP_K8S_POD_RANGE_PREFIX}.0.0/16"
+  # FIXME: Mission impossible. Below the value generated on Ubuntu system.
+  # FIXME: There is no way to select and/or detect it.
   IP_DEV_NAME="enp0s8"
 
   MY_CLUSTER_NAME="hisk8s"
