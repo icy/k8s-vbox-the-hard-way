@@ -868,7 +868,6 @@ _helm_init() { #public: Install and patch `helm` settings.
 
 _test() { #public: Default test (See README#getting-started). Create new cluster and test. (WARNING) Running cluster will be destroyed completely.
   set -xe
-  _vagrant destroy -f
   _vagrant up
   _k8s_bootstrapping_ca
   _k8s_bootstrapping_lb
