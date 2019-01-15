@@ -877,7 +877,7 @@ _helm_init() { #public: Install and patch `helm` settings.
   kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
 }
 
-_test() { #public: Default test (See README#getting-started). Create new cluster and test. (WARNING) Running cluster will be destroyed completely.
+_test() { #public: Default test (See README#getting-started). Create new cluster and test.
   set -xe
   _vagrant up
   _k8s_bootstrapping_ca
