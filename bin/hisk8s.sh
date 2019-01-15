@@ -276,7 +276,6 @@ _k8s_ca_distrubute() {
 }
 
 _k8s_bootstrapping_ca() {
-  rm -fv "$D_CA/"/*.*
   mkdir -pv "$D_CA/"
   cp -fv "$D_ETC/ca/"*.* "$D_CA/"
 
