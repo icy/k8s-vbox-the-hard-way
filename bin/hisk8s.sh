@@ -165,6 +165,10 @@ env_setup() {
   # Internal methods
   _LAST_METHOD="unknown"
   _LAST_METHOD_RETURN_CODE="unknown"
+
+  # See also https://github.com/kubernetes-sigs/cri-tools#current-status
+  K8S_CRIT_TAG="${K8S_BUNDLE_TAG%.*}.0"
+
 }
 
 _ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes. Use '_ssh list' to list all aliases.
@@ -194,6 +198,21 @@ _rsync() { #public: A wrapper of `rsync` command, useful when you need to transf
   rsync -e "ssh -F \"$F_SSH_CONFIG\"" "$@"
 }
 
+__export_env() {
+  echo "set -a"
+  env \
+  | grep -Ee "^((K8S_)|(IP_))" \
+  | while read -r _line; do
+      echo "$_line";
+    done
+  while (( $# )); do
+    _vname="$1"
+    _vname="${_vname^^}"
+    echo "${_vname}=${!_vname}"
+    shift
+  done
+}
+
 # Execute remote script
 _execute_remote() {
   local _fn="$1"; shift
@@ -201,7 +220,12 @@ _execute_remote() {
     _fn="_remote"
   fi
   for _jnode in $*; do
-   { declare -f $_fn; echo $_fn; } | _ssh "$_jnode"
+    {
+      __export_env
+      declare -f $_fn;
+      echo $_fn;
+    } \
+    | _ssh "$_jnode"
   done
 }
 
@@ -698,13 +722,10 @@ done
 }
 
 _wget_worker() {
-  # See also https://github.com/kubernetes-sigs/cri-tools#current-status
-  local _crit_version="${K8S_BUNDLE_TAG%.*}.0"
-
   mkdir -pv "$D_CACHES/worker/"
   cd "$D_CACHES/worker/" || return
   __wget \
-    https://github.com/kubernetes-sigs/cri-tools/releases/download/${_crit_version}/crictl-${_crit_version}-linux-amd64.tar.gz \
+    https://github.com/kubernetes-sigs/cri-tools/releases/download/${K8S_CRIT_TAG}/crictl-${K8S_CRIT_TAG}-linux-amd64.tar.gz \
     https://storage.googleapis.com/kubernetes-the-hard-way/runsc-50c283b9f56bb7200938d9e207355f05f79f0d17 \
     https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64 \
     https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz \
@@ -733,7 +754,7 @@ _k8s_bootstrapping_worker() {
     sudo cp -fuv runc.amd64 runc
     sudo chmod +x kubectl kube-proxy kubelet runc runsc
     sudo cp -fuv kubectl kube-proxy kubelet runc runsc /usr/local/bin/
-    sudo tar -xvf crictl-v1.12.0-linux-amd64.tar.gz -C /usr/local/bin/
+    sudo tar -xvf crictl-${K8S_CRIT_TAG}-linux-amd64.tar.gz -C /usr/local/bin/
     sudo tar -xvf cni-plugins-amd64-v0.6.0.tgz -C /opt/cni/bin/
     sudo tar -xvf containerd-1.2.0-rc.0.linux-amd64.tar.gz -C /
 
