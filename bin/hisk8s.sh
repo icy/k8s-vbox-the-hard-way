@@ -60,7 +60,7 @@ _ssh_keyscan() {
 }
 
 _ssh_list() { #public: List all nodes created by vagrant. Useful for `ssh`-related tasks.
-  grep ^Host "$F_SSH_CONFIG"
+  grep ^Host "$F_SSH_CONFIG" | column -t
 }
 
 ## main
@@ -85,6 +85,10 @@ env_setup() {
   MEM_LB="256"
 
   # Slower
+  K8S_BUNDLE_TAG="v1.12.0"
+  ETCD_TAG="v3.3.9"
+  K8S_HELM_TAG="v2.12.2"
+
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
   # This address is used by `kubelet`  (etc/kubelet-config.yaml.in)
@@ -157,9 +161,18 @@ env_setup() {
   done
 
   MACHINES="$LOAD_BALANCER $WORKERS $CONTROLLERS"
+
+  # Internal methods
+  _LAST_METHOD="unknown"
+  _LAST_METHOD_RETURN_CODE="unknown"
 }
 
-_ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes.
+_ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes. Use '_ssh list' to list all aliases.
+  if [[ "${@:-}" == "list" ]]; then
+    _ssh_list
+    return
+  fi
+
   ssh -F "$F_SSH_CONFIG" "$@"
 }
 
@@ -224,10 +237,15 @@ _k8s_bootstrapping_lb() {
     echo >&2 ":: haproxy available on your shell: http://localhost:1936/haproxy?stats#stats"
   }
 
-  HAPROXY_K8S_BACKENDS=""
+  HAPROXY_K8S_APIS=""
   for _node in $CONTROLLERS; do
-    HAPROXY_K8S_BACKENDS="$HAPROXY_K8S_BACKENDS\n    server $_node $IP_PREFIX.${_node#*-}:6443 check port 80"
+    HAPROXY_K8S_APIS="$HAPROXY_K8S_APIS\n    server $_node $IP_PREFIX.${_node#*-}:6443 check port 80"
   done
+
+  # HAPROXY_K8S_WORKERS=""
+  # for _node in $WORKERS; do
+  #   HAPROXY_K8S_WORKERS="$HAPROXY_K8S_WORKERS\n    server $_node $IP_PREFIX.${_node#*-}:6443 check port 8080"
+  # done
 
   _envsubst "$D_ETC/haproxy.cfg.in" "$D_ETC/haproxy.cfg" || return 1
   sed -i -e 's#\\n#\n#g' "$D_ETC/haproxy.cfg"
@@ -251,7 +269,7 @@ __k8s_kubelet_client_cert() {
   done
 }
 
-_k8s_ca_config_distribute() {
+_k8s_kubectl_config_distribute() {
   cd "$D_CA/" || return
 
   for _node in $WORKERS $CONTROLLERS; do
@@ -284,18 +302,63 @@ _k8s_bootstrapping_ca() {
   _k8s_ca_generate
   _k8s_ca_distrubute
 
-  _k8s_ca_config_kubelet
-  _k8s_ca_config_proxy
-  _k8s_ca_config_controller_manager
-  _k8s_ca_config_scheduler
-  _k8s_ca_config_admin
+  _k8s_kubectl_config_kubelet
+  _k8s_kubectl_config_proxy
+  _k8s_kubectl_config_controller_manager
+  _k8s_kubectl_config_scheduler
+  _k8s_kubectl_config_admin
 
-  _k8s_ca_config_distribute
+  _k8s_kubectl_config_distribute
+}
+
+# for etcd cluster, see link: https://coreos.com/os/docs/latest/generate-self-signed-certificates.html
+_ssl_generate() { #public: Generate self-sign ssl for a list of domains. Syntax: $0 first_domain optional_domains
+  local _first_site="${1:-}"
+  if [[ -z "${_first_site}" ]]; then
+    echo >&2 ":: Missing the first site."
+    return 1
+  fi
+
+  local _hosts=""
+  while (( $# )); do
+    _hosts="\"$1\",$_hosts"
+    shift
+  done
+  _hosts="${_hosts%,*}"
+
+  local _dsite="$D_CA/$_first_site"
+  mkdir -pv "$_dsite"
+  cd "$_dsite/" || return 1
+
+  cp -fv "$D_ETC/ca/"/*.* ./
+  # Generate ca-key.pem, ca.csr (not used), ca.pem
+  cfssl gencert -initca ca-csr.json | cfssljson -bare ca -
+
+  SELF_SIGNED_CN_NAME="$_first_site"
+  SELF_SIGNED_SSL_HOSTS="$_hosts"
+  # cfssl print-defaults csr > server.json.in
+  _envsubst "server.json.in" "server.json"
+
+  # Output: server-key.pem server.csr (not user) server.pem
+  # Configuration for nginx:
+  #
+  #   ssl_certificate     server.pem;
+  #   ssl_certificate_key server-key.pem;
+  cfssl gencert \
+    -ca=ca.pem \
+    -ca-key=ca-key.pem \
+    -config=ca-config.json \
+    -profile=server server.json \
+  | cfssljson -bare server
 }
 
 _k8s_ca_generate() {
   cd "$D_CA/" || return
 
+  # Output:
+  # - ca-key.pem
+  # - ca.csr (will not be used for website self-signed SSL)
+  # - ca.pem
   cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 
   cfssl gencert \
@@ -351,7 +414,7 @@ _k8s_ca_generate() {
     service-account-csr.json | cfssljson -bare service-account
 }
 
-_k8s_ca_config_proxy() {
+_k8s_kubectl_config_proxy() {
   cd "$D_CA/" || return
 
   kubectl config set-cluster ${MY_CLUSTER_NAME} \
@@ -374,7 +437,7 @@ _k8s_ca_config_proxy() {
   kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
 }
 
-_k8s_ca_config_scheduler() {
+_k8s_kubectl_config_scheduler() {
   cd "$D_CA/" || return
 
   kubectl config set-cluster ${MY_CLUSTER_NAME} \
@@ -397,7 +460,7 @@ _k8s_ca_config_scheduler() {
   kubectl config use-context default --kubeconfig=kube-scheduler.kubeconfig
 }
 
-_k8s_ca_config_admin() {
+_k8s_kubectl_config_admin() {
   cd "$D_CA/" || return
 
   kubectl config set-cluster ${MY_CLUSTER_NAME} \
@@ -420,7 +483,7 @@ _k8s_ca_config_admin() {
   kubectl config use-context default --kubeconfig=admin.kubeconfig
 }
 
-_k8s_ca_config_controller_manager() {
+_k8s_kubectl_config_controller_manager() {
   cd "$D_CA/" || return
 
   kubectl config set-cluster ${MY_CLUSTER_NAME} \
@@ -443,7 +506,7 @@ _k8s_ca_config_controller_manager() {
   kubectl config use-context default --kubeconfig=kube-controller-manager.kubeconfig
 }
 
-_k8s_ca_config_kubelet() {
+_k8s_kubectl_config_kubelet() {
   cd "$D_CA/" || return
 
   for _node in $WORKERS; do
@@ -468,11 +531,17 @@ _k8s_ca_config_kubelet() {
   done
 }
 
+_wget_etcd() {
+  mkdir -pv "$D_CACHES/etcd/"
+  cd "$D_CACHES/etcd/" || return
+  __wget "https://github.com/coreos/etcd/releases/download/${ETCD_TAG}/etcd-${ETCD_TAG}-linux-amd64.tar.gz"
+}
+
 # Requirement: _k8s_bootstrapping_lb
 _k8s_bootstrapping_etcd() {
   _remote() {
-    tar -xvf etcd-v3.3.9-linux-amd64.tar.gz
-    sudo mv etcd-v3.3.9-linux-amd64/etcd* /usr/local/bin/
+    tar -xvf etcd-${ETCD_TAG}-linux-amd64.tar.gz
+    sudo mv etcd-${ETCD_TAG}-linux-amd64/etcd* /usr/local/bin/
 
     sudo systemctl stop etcd
     sudo rm -rfv /var/lib/etcd/
@@ -486,10 +555,7 @@ _k8s_bootstrapping_etcd() {
     sudo systemctl status etcd
   }
 
-  mkdir -pv "$D_CACHES/etcd/"
-  cd "$D_CACHES/etcd/" || return
-  wget -c -q --show-progress --https-only --timestamping \
-    "https://github.com/coreos/etcd/releases/download/v3.3.9/etcd-v3.3.9-linux-amd64.tar.gz"
+  _wget_etcd
 
   for _node in $CONTROLLERS; do
     echo "::"
@@ -558,13 +624,7 @@ _k8s_bootstrapping_control_plane() {
     sudo systemctl restart nginx
   }
 
-  mkdir -pv "$D_CACHES/controller/"
-  cd "$D_CACHES/controller/" || return
-  wget -c -q --show-progress --https-only --timestamping \
-    "https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kube-apiserver" \
-    "https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kube-controller-manager" \
-    "https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kube-scheduler" \
-    "https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kubectl"
+  _wget_control_plane
 
   for _node in $CONTROLLERS; do
     echo "::"
@@ -597,6 +657,16 @@ _k8s_bootstrapping_control_plane() {
   done
 }
 
+_wget_control_plane() {
+  mkdir -pv "$D_CACHES/controller/"
+  cd "$D_CACHES/controller/" || return
+  __wget \
+    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-apiserver" \
+    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-controller-manager" \
+    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-scheduler" \
+    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubectl"
+}
+
 _k8s_bootstrapping_rbac_cluster_role() {
   for _file in kube-rbac-ClusterRole.yaml kube-rbac-ClusterRoleBinding.yaml ; do
     for _node in $CONTROLLERS; do
@@ -627,6 +697,23 @@ done
 
 }
 
+_wget_worker() {
+  # See also https://github.com/kubernetes-sigs/cri-tools#current-status
+  local _crit_version="${K8S_BUNDLE_TAG%.*}.0"
+
+  mkdir -pv "$D_CACHES/worker/"
+  cd "$D_CACHES/worker/" || return
+  __wget \
+    https://github.com/kubernetes-sigs/cri-tools/releases/download/${_crit_version}/crictl-${_crit_version}-linux-amd64.tar.gz \
+    https://storage.googleapis.com/kubernetes-the-hard-way/runsc-50c283b9f56bb7200938d9e207355f05f79f0d17 \
+    https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64 \
+    https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz \
+    https://github.com/containerd/containerd/releases/download/v1.2.0-rc.0/containerd-1.2.0-rc.0.linux-amd64.tar.gz \
+    https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubectl \
+    https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-proxy \
+    https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubelet
+}
+
 _k8s_bootstrapping_worker() {
   _remote() {
 
@@ -635,7 +722,6 @@ _k8s_bootstrapping_worker() {
     echo Y | sudo pacman -S socat conntrack ipset
 
     sudo mkdir -p \
-      /etc/cni/net.d \
       /opt/cni/bin \
       /var/lib/kubelet \
       /var/lib/kube-proxy \
@@ -653,7 +739,7 @@ _k8s_bootstrapping_worker() {
 
     sudo mkdir -pv /etc/cni/net.d/
     sudo cp -fuv ${HOSTNAME}.10-bridge.conf   /etc/cni/net.d/10-bridge.conf
-    sudo cp -fuv 99-loopback.conf /etc/cni/net.d/99-loopback.conf
+    sudo cp -fuv 99-loopback.conf             /etc/cni/net.d/99-loopback.conf
 
     sudo mkdir -p /etc/containerd/
 
@@ -667,7 +753,6 @@ _k8s_bootstrapping_worker() {
     sudo cp -fuv kubelet.service /etc/systemd/system/kubelet.service
     sudo cp -fuv kube-proxy.kubeconfig /var/lib/kube-proxy/kubeconfig
     sudo cp -fuv kube-proxy-config.yaml /var/lib/kube-proxy/kube-proxy-config.yaml
-    sudo cp -fuv kube-proxy.service  /etc/systemd/system/kube-proxy.service
     sudo cp -fuv ${HOSTNAME}.kube-proxy.service  /etc/systemd/system/kube-proxy.service
 
     sudo systemctl daemon-reload
@@ -675,18 +760,7 @@ _k8s_bootstrapping_worker() {
     sudo systemctl restart containerd kubelet kube-proxy
   }
 
-  mkdir -pv "$D_CACHES/worker/"
-  cd "$D_CACHES/worker/" || return
-
-  wget -v -c --show-progress --https-only --timestamping \
-    https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.12.0/crictl-v1.12.0-linux-amd64.tar.gz \
-    https://storage.googleapis.com/kubernetes-the-hard-way/runsc-50c283b9f56bb7200938d9e207355f05f79f0d17 \
-    https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64 \
-    https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz \
-    https://github.com/containerd/containerd/releases/download/v1.2.0-rc.0/containerd-1.2.0-rc.0.linux-amd64.tar.gz \
-    https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kubectl \
-    https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kube-proxy \
-    https://storage.googleapis.com/kubernetes-release/release/v1.12.0/bin/linux/amd64/kubelet
+  _wget_worker
 
   for _node in $WORKERS; do
     echo "::"
@@ -706,7 +780,6 @@ _k8s_bootstrapping_worker() {
       "$D_ETC/${_node}.kubelet-config.yaml" \
       "$D_ETC/kubelet.service" \
       "$D_ETC/kube-proxy-config.yaml" \
-      "$D_ETC/kube-proxy.service" \
       "$D_ETC/${_node}.10-bridge.conf" \
       "$D_ETC/99-loopback.conf" \
       "$D_ETC/$_node.kube-proxy.service" \
@@ -817,7 +890,7 @@ _smoke_test_etcd() { #public: Simple smoke tests against etcd setup.
   for _node in $CONTROLLERS; do
     echo ":: etcd connective on $_node"
 
-    _ssh $_node \
+    _ssh -n $_node \
       sudo ETCDCTL_API=3 etcdctl member list \
         --endpoints=https://127.0.0.1:2379 \
         --cacert=/etc/etcd/ca.pem \
@@ -827,23 +900,49 @@ _smoke_test_etcd() { #public: Simple smoke tests against etcd setup.
 }
 
 _smoke_test_lb() { #public: Simple smoke tests against custom DNS and Load balancer.
-  _ssh $LOAD_BALANCER "
-    echo >&2 ':: Testing inside LB instance'
-    curl -s -k https://localhost:6443/version
-    echo
-    echo >&2 ':: dns resolver'
-    dig @localhost A +short ${WORKERS}
-  "
-
-  echo >&2 ":: Testing from your laptop"
+  echo >&2 ":: Testing from your laptop : Accessing k8s api"
   curl \
     -s --resolve "kubernetes.default:6443:127.0.0.1" \
     --cacert "$D_CA/ca.pem"  \
     "https://kubernetes.default:6443/version"
   echo
 
-  echo >&2 ":: Haproxy stats: http://localhost:1936/haproxy?stats"
-  echo >&2 ":: User: admin, Password: admin"
+  _ssh -n $LOAD_BALANCER "
+    echo >&2 ':: Testing inside LB instance : Accessing k8s api'
+    curl -s -k https://localhost:6443/version
+    echo
+    echo >&2 ':: Testing dns resolver'
+    for _node in ${MACHINES} k8s random$RANDOM.k8s; do
+      echo \"Resolving \$_node : \$(dig @localhost A +short \$_node | head -1)\"
+    done
+  "
+
+  echo >&2 ":: Haproxy stats: http://localhost:1936/haproxy?stats (user: admin password: admin)"
+}
+
+_wget_helm() { #public: Download helm binary to $D_CACHES/ directory
+  mkdir -pv "$D_CACHES/"
+  cd "$D_CACHES/" || return
+  __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz
+  tar xfvz helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz linux-amd64/helm
+  mv linux-amd64/helm "./helm-${K8S_HELM_TAG}"
+  ls -la helm-*
+}
+
+_wget_kubectl() { #public: Download kubectl binary to $D_CACHES/ directory.
+  mkdir -pv "$D_CACHES/"
+  cd "$D_CACHES/" || return
+  __wget -O kubectl-"${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"$K8S_BUNDLE_TAG}"/bin/darwin/amd64/kubectl
+  ls -la kubectl-*
+}
+
+__wget() {
+  echo >&2 ":: Downloading:"
+  for _uri in $*; do
+    echo >&2 "   - $_uri"
+  done
+
+  wget -c -q --https-only --show-progress --timestamping "$@"
 }
 
 _remote_install_kubectl() {
@@ -866,10 +965,11 @@ _helm() { #public: A wrapper of helm command
   helm "$@"
 }
 
-_helm_init_plugin_diff() { #public: Install diff plugin for helm
-  HOME="$D_ETC/"
-  helm plugin install https://github.com/databus23/helm-diff --version master
-}
+# The plugin is loaded by default...
+# _helm_init_plugin_diff() { #public: Install diff plugin for helm
+#   HOME="$D_ETC/"
+#   helm plugin install https://github.com/databus23/helm-diff --version master
+# }
 
 _helm_init() { #public: Install and patch `helm` settings.
   HOME="$D_ETC/"
@@ -881,27 +981,105 @@ _helm_init() { #public: Install and patch `helm` settings.
 
 _test() { #public: Default test (See README#getting-started). Create new cluster and test.
   set -xe
-  _vagrant up
-  _k8s_bootstrapping_ca
-  _k8s_bootstrapping_lb
-  _k8s_bootstrapping_etcd
-  _k8s_encryption_key_gen
-  _k8s_bootstrapping_control_plane
-  _k8s_bootstrapping_rbac_cluster_role
-  _k8s_bootstrapping_worker
-  _k8s_worker_routing
-  _k8s_bootstrapping_kubectl_config
-  _k8s_bootstrapping_coredns
+  __execute __require
+  __execute _vagrant up
+  __execute _k8s_bootstrapping_ca
+  __execute _k8s_bootstrapping_lb
+  __execute _k8s_bootstrapping_etcd
+  __execute _k8s_encryption_key_gen
+  __execute _k8s_bootstrapping_control_plane
+  __execute _k8s_bootstrapping_rbac_cluster_role
+  __execute _k8s_bootstrapping_worker
+  __execute _k8s_worker_routing
+  __execute _k8s_bootstrapping_kubectl_config
+  __execute _k8s_bootstrapping_coredns
+}
+
+__execute() {
+  local _method="${1:-}"
+  if [[ -z "${_method}" ]]; then
+    echo >&2 ":: Missing method name."
+    return 1
+  fi
+
+  _LAST_METHOD_RETURN_CODE="unknown"
+  _LAST_METHOD="$_method"
+  echo >&2 ":: Executing $_LAST_METHOD"
+
+  "$@"
+  _LAST_METHOD_RETURN_CODE="$?"
+
+  echo >&2 ":: Complete $_LAST_METHOD, Return code: $_LAST_METHOD_RETURN_CODE"
+  return "$_LAST_METHOD_RETURN_CODE"
+}
+
+__require() {
+  local _commons="
+    kubectl \
+    cfssl \
+    envsubst \
+    vagrant \
+    wget \
+    rsync \
+    curl \
+    column \
+    sort \
+    sed \
+    tar \
+  "
+  for _c in ${*:-$_commons}; do
+    command -V "$_c" > /dev/null || return
+  done
+}
+
+__trap() {
+  set +x
+
+  if [[ "${_LAST_METHOD:-unknown}" != "unknown" ]]; then
+    echo >&2 ":: =========================="
+    echo >&2 ":: Last method: $_LAST_METHOD"
+    echo >&2 ":: Last method return code: $_LAST_METHOD_RETURN_CODE"
+  fi
+}
+
+_env() { #public: Show hisk8s environments
+  local _sig="☠"
+  cat <<EOF | column -s"$_sig" -t
+Environments:
+  Directory:
+    Root:           $_sig$D_ROOT
+    Configuration:  $_sig$D_ETC
+    Caching:        $_sig$D_CACHES
+    Certificates:   $_sig$D_CA
+  Hisk8s:
+    Version:        ${_sig}0.0.0-alpha
+
+Cluster:
+  Number of workers:      $_sig$N_WORKERS (memory: $MEM_WORKER)
+  Number of controllers:  $_sig$N_CONTROLLERS (memory: $MEM_CONTROLLER)
+  Node IP prefix:         $_sig$IP_PREFIX
+  Load balancer:          $_sig$IP_LB (memory: $MEM_LB)
+  Vagrant local data:     $_sig$D_ROOT/machines/
+
+Kubernetes:
+  Bundle version:       $_sig$K8S_BUNDLE_TAG
+  Helm version:         $_sig$K8S_HELM_TAG
+  Kube configuration:   $_sig$D_ETC/.kube/config
+  Kubectl wrapper:      $_sig$D_BIN/_kubectl
+EOF
 }
 
 _me_list_public_methods() {
-  grep -E '^_.+ #public' "$0" | sed -e 's|() { #public||g' | column -s : -t | sort
+  LANG=en_US.UTF_8
+  grep -E '^_.+ #public' "$0" | sed -e 's|() { #public: |☠|g' | column -s"☠" -t | sort
 }
+
+trap  __trap EXIT
 
 # Basic support
 _basename="$(basename "$0")"
 case "$_basename" in
-"_kubectl"|"_helm")
+"_kubectl"|"_helm"|"_ssh"|"_env")
   _command="$_basename"
   env_setup || exit
   $_command "$@"
