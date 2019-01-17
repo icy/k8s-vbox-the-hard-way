@@ -7,6 +7,31 @@
       "kubernetes": {
         "usages": ["signing", "key encipherment", "server auth", "client auth"],
         "expiry": "8760h"
+      },
+      "server": {
+        "expiry": "43800h",
+        "usages": [
+          "signing",
+          "key encipherment",
+          "server auth"
+        ]
+      },
+      "client": {
+        "expiry": "43800h",
+        "usages": [
+          "signing",
+          "key encipherment",
+          "client auth"
+        ]
+      },
+      "peer": {
+        "expiry": "43800h",
+        "usages": [
+          "signing",
+          "key encipherment",
+          "server auth",
+          "client auth"
+        ]
       }
     }
   }
