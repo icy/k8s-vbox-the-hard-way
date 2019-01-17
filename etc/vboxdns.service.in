@@ -8,7 +8,7 @@ Restart=on-failure
 StartLimitBurst=3
 StartLimitInterval=60s
 #EnvironmentFile=/home/vagrant/vboxdns.env
-Environment="IP_PREFIX=${IP_PREFIX}"
+Environment="IP_PREFIX=${IP_PREFIX}" "WORKERS=${WORKERS}" "CONTROLLERS=${CONTROLLERS}"
 
 [Install]
 WantedBy=multi-user.target
