@@ -17,3 +17,6 @@ etc/vboxdns.service
 etc/.kube/
 etc/coredns.yaml.in
 etc/encryption-config.yaml.in
+etc/.config/
+etc/.helm/
+etc/.vagrant.d/
