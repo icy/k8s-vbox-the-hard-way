@@ -132,7 +132,7 @@ env_setup() {
 
   if [[ ! -f "$D_BIN/hisk8s.sh" ]]; then
     echo >&2 ":: hisk8s script not found in $D_BIN, or $D_ROOT/$D_BIN is invalid."
-    return
+    return 127
   fi
 
   F_SSH_CONFIG="$D_ETC/ssh.config"
