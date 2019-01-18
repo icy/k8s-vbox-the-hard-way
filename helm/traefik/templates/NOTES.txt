@@ -1,0 +1,3 @@
+The Traefik dashboard can be seen from the load balancer at
+
+  http://traefik.k8s/dashboard/status

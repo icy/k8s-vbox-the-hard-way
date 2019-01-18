@@ -1,0 +1,33 @@
+# Provide: http://traefik.k8s/dashboard/
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-ingress-dashboard
+  namespace: kube-system
+spec:
+  selector:
+    k8s-app: traefik-ingress-lb
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: traefik-ingress-dashboard-ingress
+  namespace: kube-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    # traefik.ingress.kubernetes.io/redirect-entry-point: https
+spec:
+  rules:
+  - host: traefik.k8s
+    http:
+      paths:
+      - backend:
+          serviceName: traefik-ingress-dashboard
+          servicePort: 80
+  #tls:
+  # - secretName: foobar
