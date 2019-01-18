@@ -64,5 +64,3 @@ You can also use different aliases provided in the output of `_ssh_list`.
 ## In-depth docs, details and customizations
 
 TODO
-
-for _pod in $(./bin/hisk8s.sh _kubectl get pods  |grep foo1 | awk '{print $1}'); do echo "$_pod"; ./bin/hisk8s.sh _kubectl exec -ti $_pod -- sh -c 'hostname -f > /usr/share/nginx/html/index.html';
