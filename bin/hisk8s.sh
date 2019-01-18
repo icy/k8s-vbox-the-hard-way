@@ -8,7 +8,7 @@
 set -a # export all variables....
 set -u # break if there is any unbound variable
 
-_vagrant() { #public: A wrapper for `vagrant` command. E.g, `_vagrant destroy -f` to destroy all nodes.
+_vagrant() { #public: A wrapper for `vagrant` loop on all nodes. E.g, `_vagrant destroy -f` to destroy all nodes.
   mkdir -pv "$D_MACHINES"
   for _node in $MACHINES; do
     mkdir -pv "$D_MACHINES/$_node/"
@@ -168,7 +168,6 @@ env_setup() {
 
   # See also https://github.com/kubernetes-sigs/cri-tools#current-status
   K8S_CRIT_TAG="${K8S_BUNDLE_TAG%.*}.0"
-
 }
 
 _ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes. Use '_ssh list' to list all aliases.
@@ -200,11 +199,15 @@ _rsync() { #public: A wrapper of `rsync` command, useful when you need to transf
 
 __export_env() {
   echo "set -a"
+  echo "set -u"
+
   env \
-  | grep -Ee "^((K8S_)|(IP_))" \
+  | grep -Ee "((^K8S_)|(^IP_))" \
   | while read -r _line; do
       echo "$_line";
     done
+
+  set -- "$@" ETCD_TAG
   while (( $# )); do
     _vname="$1"
     _vname="${_vname^^}"
@@ -258,7 +261,7 @@ _k8s_bootstrapping_lb() {
     sudo systemctl start haproxy
     sudo systemctl restart haproxy
     sudo systemctl status haproxy
-    echo >&2 ":: haproxy available on your shell: http://localhost:1936/haproxy?stats#stats"
+    echo >&2 ":: haproxy available on your shell: http://localhost:1936/haproxy?stats#stats (user: admin, password: admin)"
   }
 
   HAPROXY_K8S_APIS=""
@@ -331,7 +334,6 @@ _k8s_bootstrapping_ca() {
   _k8s_kubectl_config_controller_manager
   _k8s_kubectl_config_scheduler
   _k8s_kubectl_config_admin
-
   _k8s_kubectl_config_distribute
 }
 
@@ -758,8 +760,9 @@ _k8s_bootstrapping_worker() {
     sudo tar -xvf cni-plugins-amd64-v0.6.0.tgz -C /opt/cni/bin/
     sudo tar -xvf containerd-1.2.0-rc.0.linux-amd64.tar.gz -C /
 
+    sudo rm -rf /etc/cni/net.d/
     sudo mkdir -pv /etc/cni/net.d/
-    sudo cp -fuv ${HOSTNAME}.10-bridge.conf   /etc/cni/net.d/10-bridge.conf
+    sudo cp -fuv ${HOSTNAME}.10-bridge.conflist   /etc/cni/net.d/10-bridge.conflist
     sudo cp -fuv 99-loopback.conf             /etc/cni/net.d/99-loopback.conf
 
     sudo mkdir -p /etc/containerd/
@@ -790,7 +793,7 @@ _k8s_bootstrapping_worker() {
     IP_NODEPORT_RANGES="${IP_PREFIX}.${_node#*-}/32"
 
     _envsubst "$D_ETC/kube-proxy.service.in"          "$D_ETC/$_node.kube-proxy.service"
-    _envsubst "$D_ETC/10-bridge.conf.in"          "$D_ETC/$_node.10-bridge.conf"
+    _envsubst "$D_ETC/10-bridge.conf.in"          "$D_ETC/$_node.10-bridge.conflist"
     _envsubst "$D_ETC/kube-proxy-config.yaml.in"     "$D_ETC/kube-proxy-config.yaml"
     _envsubst "$D_ETC/kubelet-config.yaml.in"     "$D_ETC/$_node.kubelet-config.yaml"
 
@@ -801,7 +804,7 @@ _k8s_bootstrapping_worker() {
       "$D_ETC/${_node}.kubelet-config.yaml" \
       "$D_ETC/kubelet.service" \
       "$D_ETC/kube-proxy-config.yaml" \
-      "$D_ETC/${_node}.10-bridge.conf" \
+      "$D_ETC/${_node}.10-bridge.conflist" \
       "$D_ETC/99-loopback.conf" \
       "$D_ETC/$_node.kube-proxy.service" \
       $_node:~/
@@ -998,6 +1001,10 @@ _helm_init() { #public: Install and patch `helm` settings.
   kubectl create serviceaccount --namespace kube-system tiller
   kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
   kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+}
+
+_steps() { #public: Default steps to bootstrap new k8s cluster
+  declare -f _test
 }
 
 _test() { #public: Default test (See README#getting-started). Create new cluster and test.
