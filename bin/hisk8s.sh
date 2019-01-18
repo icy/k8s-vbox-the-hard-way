@@ -1092,6 +1092,7 @@ Cluster:
 Kubernetes:
   Bundle version:       $_sig$K8S_BUNDLE_TAG
   Helm version:         $_sig$K8S_HELM_TAG
+  Etcd version:         $_sig$ETCD_TAG
   Kube configuration:   $_sig$D_ETC/.kube/config
   Kubectl wrapper:      $_sig$D_BIN/_kubectl
 EOF
