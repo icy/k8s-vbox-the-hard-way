@@ -53,18 +53,18 @@ listen  stats
     stats auth admin:admin
     stats uri  /haproxy?stats
 
-frontend k8sapi
+frontend k8s_api
     bind *:6443
     mode tcp
     option tcplog
-    default_backend k8sapi
+    default_backend k8s_api
     timeout client          5m
 
-backend k8sapi
+backend k8s_api
     mode tcp
     balance roundrobin
     option httpchk GET /healthz HTTP/1.0
     http-check expect status 200
     timeout connect        60s
     timeout server          5m
-    ${HAPROXY_K8S_BACKENDS}
+    ${HAPROXY_K8S_APIS}
