@@ -22,7 +22,8 @@ And yes I have a script to automate the process.
 Edit some basic settings in `./etc/custom.env.sh` and start the cluster:
 
 ```
-./bin/hisk8s.sh _test
+./bin/hisk8s.sh _env   # Print basic information
+./bin/hisk8s.sh _test  # Create new cluster
 ```
 
 ### Running smoke tests
@@ -63,3 +64,5 @@ You can also use different aliases provided in the output of `_ssh_list`.
 ## In-depth docs, details and customizations
 
 TODO
+
+for _pod in $(./bin/hisk8s.sh _kubectl get pods  |grep foo1 | awk '{print $1}'); do echo "$_pod"; ./bin/hisk8s.sh _kubectl exec -ti $_pod -- sh -c 'hostname -f > /usr/share/nginx/html/index.html';
