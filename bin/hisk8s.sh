@@ -46,6 +46,7 @@ _ssh_config_generate() {
     echo "  UserKnownHostsFile ${F_SSH_KNOWN_HOSTS}"
     echo "  StrictHostKeyChecking yes"
     echo "  IdentityFile $OHOME/.vagrant.d/insecure_private_key"
+    echo "  IdentitiesOnly yes"
   done
 }
 
