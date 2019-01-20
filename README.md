@@ -21,6 +21,7 @@ And yes I have a script to automate the process.
 
 Edit some basic settings in `./etc/custom.env.sh` and start the cluster:
 
+    $ ./bin/hisk8s.sh        # Getting some helps
     $ ./bin/hisk8s.sh _env   # Print basic information
     $ ./bin/hisk8s.sh _test  # Create new cluster
 
