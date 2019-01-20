@@ -90,6 +90,7 @@ env_setup() {
   ETCD_TAG="v3.3.9"
   K8S_HELM_TAG="v2.12.2"
   COREDNS_VERSION="1.2.2"
+  COREDNS_LOOP="loop"
 
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
@@ -1112,8 +1113,15 @@ Kubernetes:
   Helm version:         $_sig$K8S_HELM_TAG
   Etcd version:         $_sig$ETCD_TAG
   Coredns version:      $_sig$COREDNS_VERSION
+  Coredns loop:         $_sig${COREDNS_LOOP:-disabled}
   Kube configuration:   $_sig$D_ETC/.kube/config
   Kubectl wrapper:      $_sig$D_BIN/_kubectl
+
+DNS resolver:
+  Address:              $_sig$IP_LB
+  *.k8s, k8s:           ${_sig}Resolved to workers' addresses
+  controller-*:         ${_sig}Resolved to controller's address
+  worker-*:             ${_sig}Resolved to worker's address
 EOF
 }
 
