@@ -1027,6 +1027,8 @@ _test() { #public: Default test (See README#getting-started). Create new cluster
   __execute _k8s_worker_routing
   __execute _k8s_bootstrapping_kubectl_config
   __execute _k8s_bootstrapping_coredns
+  # FIXME: Sometimes the cluster is not ready and the previous RBAC issue
+  # FIXME: can't be completed. We can re-issue another time.
   __execute _k8s_bootstrapping_rbac_cluster_role
   set +x
   _welcome
