@@ -49,11 +49,11 @@ You can execute the tool via the wrapper, for examples:
 If you haven't installed `helm`, you can download them with `_wget_hem`
 then move the binary from `caches/` to your search path.
 
-    $ hisk8s.sh _wget_helm # optionally
+    $ hisk8s.sh _wget_helm # optionally, binary saved in caches/
     $ hisk8s.sh _helm_init
     $ hisk8s.sh _test_hem
 
-This will install two helms
+This will install two helm charts
 
     $ _helm list
     NAME    REVISION        UPDATED                         STATUS          CHART           APP VERSION     NAMESPACE
