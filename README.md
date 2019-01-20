@@ -17,50 +17,90 @@ And yes I have a script to automate the process.
   environment variable to recognize these new tools installed in `$GOPATH/bin`.)
 * [`kubectl` command line](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-binary-using-curl)
 
-### Bootstrap the cluster
+### Bootstrapping the cluster
 
 Edit some basic settings in `./etc/custom.env.sh` and start the cluster:
 
-```
-./bin/hisk8s.sh _env   # Print basic information
-./bin/hisk8s.sh _test  # Create new cluster
-```
+    $ ./bin/hisk8s.sh _env   # Print basic information
+    $ ./bin/hisk8s.sh _test  # Create new cluster
 
-### Running smoke tests
+### Testing
 
-```
-./bin/hisk8s.sh _smoke_tests
-./bin/hisk8s.sh _smoke_test_deploy_app
-```
+#### Running smoke tests
+
+These tests are inspired by the original `k8s the hard way`; you have
+to clean up the pods and services after the tests. You may want to skip
+to the next section instead.
+
+    $ ./bin/hisk8s.sh _smoke_tests
+    $ ./bin/hisk8s.sh _smoke_test_deploy_app
 
 `kubectl` configuration will be stored under `./etc/.kube/config`.
 You can execute the tool via the wrapper, for examples:
 
-```
-./bin/hisk8s.sh _kubectl get nodes
-NAME         STATUS   ROLES    AGE    VERSION
-worker-141   Ready    <none>   100s   v1.12.0
-```
+    $ ./bin/hisk8s.sh _kubectl get nodes
+    NAME         STATUS   ROLES    AGE    VERSION
+    worker-141   Ready    <none>   100s   v1.12.0
 
 (You can also use the shortcut `./bin/_kubectl`)
+
+#### Testing with Helm
+
+    $ hisk8s.sh _helm_init
+    $ hisk8s.sh _test_hem
+
+This will install two helms
+
+    $ _helm list
+    NAME    REVISION        UPDATED                         STATUS          CHART           APP VERSION     NAMESPACE
+    empty   1               Sun Jan 20 14:39:19 2019        DEPLOYED        empty-0.1.0     1.0             default
+    traefik 1               Sun Jan 20 14:39:19 2019        DEPLOYED        traefik-0.1.0   1.0             default
+
+If you open a sock proxy through the load balancer, you can access these services
+
+    $ _ssh lb100 -D 10000 -fN
+
+Now reconfigure your browser to use the socks5 proxy (host: `localhost`, port: `10000`),
+and input the following address in the newly configured browser:
+
+    http://empty.k8s/
+    http://traefik.k8s/
+
+You can also access these addresses in the load balancer's shell:
+
+    $ _ssh 100
+    vagrant@lb-100:~$ curl http://empty.k8s
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>Welcome to nginx!</title>
+    <snip>
+
+The cluster is ready for you.
 
 ### Debugging
 
 To enter a node, use the wrapper script:
 
-```
-./bin/hisk8s.sh _ssh_list
-./bin/hisk8s.sh _ssh 111
-```
+    $ ./bin/hisk8s.sh _ssh_list
+    $ ./bin/hisk8s.sh _ssh 111
 
 You can also use different aliases provided in the output of `_ssh_list`.
 
 ### Tear down
 
-```
-./bin/hisk8s.sh _vagrant destroy -f
-```
+    $ ./bin/hisk8s.sh _vagrant destroy -f
 
 ## In-depth docs, details and customizations
 
-TODO
+### List of all steps to bootstrap new cluster
+
+The list of all steps as in
+
+  https://github.com/kelseyhightower/kubernetes-the-hard-way#labs
+
+can be seen by using the `_steps` method:
+
+    $ hisk8s.sh _steps
+
+This prints the definition of the `_test` method.
