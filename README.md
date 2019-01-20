@@ -46,6 +46,10 @@ You can execute the tool via the wrapper, for examples:
 
 #### Testing with Helm
 
+If you haven't installed `helm`, you can download them with `_wget_hem`
+then move the binary from `caches/` to your search path.
+
+    $ hisk8s.sh _wget_helm # optionally
     $ hisk8s.sh _helm_init
     $ hisk8s.sh _test_hem
 
@@ -93,14 +97,14 @@ You can also use different aliases provided in the output of `_ssh_list`.
 
 **Important notes**:
 The script is stateless and it doesn't know if you have decreased the
-number of workers/controllers. If you change the `etc/customizations.env.sh`
-the script probably can't help to destroy all nodes. If that the case,
+number of workers/controllers. If you change `etc/customizations.env.sh`
+the script probably can't help to destroy all nodes. If that's the case,
 the best way is to restore the high number(s) and execute
 
     $ hisk8s.sh _vagrant destroy -f
 
 because deleting nodes from `VirtualBox` doesn't help to remove some
-port-forwarding settings
+port-forwarding settings.
 
 ## In-depth docs, details and customizations
 
