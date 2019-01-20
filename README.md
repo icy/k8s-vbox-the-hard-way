@@ -91,6 +91,17 @@ You can also use different aliases provided in the output of `_ssh_list`.
 
     $ ./bin/hisk8s.sh _vagrant destroy -f
 
+**Important notes**:
+The script is stateless and it doesn't know if you have decreased the
+number of workers/controllers. If you change the `etc/customizations.env.sh`
+the script probably can't help to destroy all nodes. If that the case,
+the best way is to restore the high number(s) and execute
+
+    $ hisk8s.sh _vagrant destroy -f
+
+because deleting nodes from `VirtualBox` doesn't help to remove some
+port-forwarding settings
+
 ## In-depth docs, details and customizations
 
 ### List of all steps to bootstrap new cluster
