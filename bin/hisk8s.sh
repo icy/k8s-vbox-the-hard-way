@@ -89,6 +89,7 @@ env_setup() {
   K8S_BUNDLE_TAG="v1.12.0"
   ETCD_TAG="v3.3.9"
   K8S_HELM_TAG="v2.12.2"
+  COREDNS_VERSION="1.2.2"
 
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
@@ -1008,6 +1009,10 @@ _steps() { #public: Default steps to bootstrap new k8s cluster
   declare -f _test
 }
 
+_welcome() {
+  echo >&2 ":: Congratulations. Your cluster has been up."
+}
+
 _test() { #public: Default test (See README#getting-started). Create new cluster and test.
   set -xe
   __execute __require
@@ -1022,6 +1027,16 @@ _test() { #public: Default test (See README#getting-started). Create new cluster
   __execute _k8s_worker_routing
   __execute _k8s_bootstrapping_kubectl_config
   __execute _k8s_bootstrapping_coredns
+  __execute _k8s_bootstrapping_rbac_cluster_role
+  set +x
+  _welcome
+}
+
+_test_helm() { #public: Intsall helm and test helm/{empty,traefik}
+  _helm_init
+  _helm install -n empty "$D_ROOT"/helm/empty
+  _helm install -n traefik "$D_ROOT"/helm/traefik
+  _helm list
 }
 
 __execute() {
@@ -1094,6 +1109,7 @@ Kubernetes:
   Bundle version:       $_sig$K8S_BUNDLE_TAG
   Helm version:         $_sig$K8S_HELM_TAG
   Etcd version:         $_sig$ETCD_TAG
+  Coredns version:      $_sig$COREDNS_VERSION
   Kube configuration:   $_sig$D_ETC/.kube/config
   Kubectl wrapper:      $_sig$D_BIN/_kubectl
 EOF

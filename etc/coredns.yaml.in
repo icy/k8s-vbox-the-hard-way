@@ -57,7 +57,7 @@ data:
         prometheus :9153
         proxy . /etc/resolv.conf
         cache 30
-        loop
+        ${COREDNS_LOOP}
         reload
         loadbalance
     }
@@ -71,7 +71,7 @@ metadata:
     k8s-app: kube-dns
     kubernetes.io/name: "CoreDNS"
 spec:
-  replicas: 2
+  replicas: ${N_CONTROLLERS}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -92,7 +92,7 @@ spec:
           operator: "Exists"
       containers:
       - name: coredns
-        image: coredns/coredns:1.2.2
+        image: coredns/coredns:${COREDNS_VERSION}
         imagePullPolicy: IfNotPresent
         resources:
           limits:
