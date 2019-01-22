@@ -91,6 +91,7 @@ env_setup() {
   K8S_HELM_TAG="v2.12.2"
   COREDNS_VERSION="1.2.2"
   COREDNS_LOOP="loop"
+  CONTAINDER_TAG="v1.2.2"
 
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
@@ -205,12 +206,11 @@ __export_env() {
   echo "set -u"
 
   env \
-  | grep -Ee "((^K8S_)|(^IP_))" \
+  | grep -Ee "((^K8S_)|(^IP_)|(^[^[:space:]]+_TAG=))" \
   | while read -r _line; do
       echo "$_line";
     done
 
-  set -- "$@" ETCD_TAG
   while (( $# )); do
     _vname="$1"
     _vname="${_vname^^}"
@@ -734,7 +734,7 @@ _wget_worker() {
     https://storage.googleapis.com/kubernetes-the-hard-way/runsc-50c283b9f56bb7200938d9e207355f05f79f0d17 \
     https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64 \
     https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz \
-    https://github.com/containerd/containerd/releases/download/v1.2.0-rc.0/containerd-1.2.0-rc.0.linux-amd64.tar.gz \
+    https://github.com/containerd/containerd/releases/download/${CONTAINDER_TAG}/containerd-${CONTAINDER_TAG#v*}.linux-amd64.tar.gz \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubectl \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-proxy \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubelet
@@ -761,7 +761,7 @@ _k8s_bootstrapping_worker() {
     sudo cp -fuv kubectl kube-proxy kubelet runc runsc /usr/local/bin/
     sudo tar -xvf crictl-${K8S_CRIT_TAG}-linux-amd64.tar.gz -C /usr/local/bin/
     sudo tar -xvf cni-plugins-amd64-v0.6.0.tgz -C /opt/cni/bin/
-    sudo tar -xvf containerd-1.2.0-rc.0.linux-amd64.tar.gz -C /
+    sudo tar -xvf containerd-${CONTAINDER_TAG#v*}.linux-amd64.tar.gz -C /
 
     sudo rm -rf /etc/cni/net.d/
     sudo mkdir -pv /etc/cni/net.d/
@@ -1023,13 +1023,10 @@ _test() { #public: Default test (See README#getting-started). Create new cluster
   __execute _k8s_bootstrapping_etcd
   __execute _k8s_encryption_key_gen
   __execute _k8s_bootstrapping_control_plane
-  __execute _k8s_bootstrapping_rbac_cluster_role
   __execute _k8s_bootstrapping_worker
   __execute _k8s_worker_routing
   __execute _k8s_bootstrapping_kubectl_config
   __execute _k8s_bootstrapping_coredns
-  # FIXME: Sometimes the cluster is not ready and the previous RBAC issue
-  # FIXME: can't be completed. We can re-issue another time.
   __execute _k8s_bootstrapping_rbac_cluster_role
   set +x
   _welcome
@@ -1114,6 +1111,7 @@ Kubernetes:
   Etcd version:         $_sig$ETCD_TAG
   Coredns version:      $_sig$COREDNS_VERSION
   Coredns loop:         $_sig${COREDNS_LOOP:-disabled}
+  Containerd version:   $_sig${CONTAINDER_TAG}
   Kube configuration:   $_sig$D_ETC/.kube/config
   Kubectl wrapper:      $_sig$D_BIN/_kubectl
 
