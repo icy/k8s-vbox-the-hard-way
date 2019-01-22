@@ -150,6 +150,16 @@ env_setup() {
     echo ":: Custom environment file not found: $D_ETC/custom.env.sh"
   fi
 
+  if [[ ! "$N_WORKERS" -ge 1 ]]; then
+    echo >&2 ":: Number of workers must >= 1."
+    return 1
+  fi
+
+  if [[ ! "$N_CONTROLLERS" -ge 1 ]]; then
+    echo >&2 ":: Number of controllers must >= 1."
+    return 1
+  fi
+
   n="$N_WORKERS"
   WORKERS=""
   while (( n )); do
@@ -1145,5 +1155,5 @@ case "${1:-}" in
 ""|"-h"|"--help") _me_list_public_methods; exit ;;
 esac
 
-env_setup
+env_setup || exit
 "$@"
