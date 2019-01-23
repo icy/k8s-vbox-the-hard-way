@@ -17,3 +17,17 @@ MEM_LB="256"
 COREDNS_LOOP=""
 # Otherwise, please use 'loop
 #COREDNS_LOOP="loop"
+
+# Enable to invoke vagrant commands in parallel (very fast!!!)
+#
+# Use this feature at your own risk: The main script will not check if
+# there is any errors from vagrant sub-proceses. Moreover, all machines
+# would be started at the same time so if the number of nodes is greater
+# than number of cores you would hear noisy sound from PC fan ;)
+#
+# It's recommended that you start with 0 in the very first tries
+# (e.g, with lower number of workers/controllers) and then
+# move fast later.
+#
+# FIXME: We will ensure parallel feature work persistently.
+VAGRANT_PARALLEL=0

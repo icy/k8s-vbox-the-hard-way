@@ -11,11 +11,22 @@ set -u # break if there is any unbound variable
 _vagrant() { #public: A wrapper for `vagrant` loop on all nodes. E.g, `_vagrant destroy -f` to destroy all nodes.
   mkdir -pv "$D_MACHINES"
   for _node in $MACHINES; do
-    mkdir -pv "$D_MACHINES/$_node/"
-    cd "$D_MACHINES/$_node/" || return
-    cp -fv "$F_VAGRANTFILE" Vagrantfile
-    HOME="$OHOME" vagrant "$@" || return
+    if [[ "${VAGRANT_PARALLEL}" == 1 ]]; then
+      :
+      (
+      mkdir -pv "$D_MACHINES/$_node/"
+      cd "$D_MACHINES/$_node/" || return
+      cp -fv "$F_VAGRANTFILE" Vagrantfile
+      HOME="$OHOME" vagrant "$@" || return
+      ) &
+    else
+      mkdir -pv "$D_MACHINES/$_node/"
+      cd "$D_MACHINES/$_node/" || return
+      cp -fv "$F_VAGRANTFILE" Vagrantfile
+      HOME="$OHOME" vagrant "$@" || return
+    fi
   done
+  wait
 
   if [[ "${1:-}" == "up" ]]; then
     _ssh_config_update_all
@@ -122,9 +133,12 @@ env_setup() {
   SSH_PORT_PREFIX="10"
   VBOX_PRIVATE_NETWORK_NAME="hisk8s"
 
+  VAGRANT_PARALLEL=1
   # General environments
 
-  OHOME=$HOME
+  OHOME="$HOME"
+  readonly OHOME
+
   D_ROOT="$(dirname "${BASH_SOURCE[0]:-}")/../"
   D_ROOT="$(cd "$D_ROOT" && pwd -P)"
   D_BIN="$D_ROOT/bin/"
