@@ -25,12 +25,12 @@ Edit some basic settings in `./etc/custom.env.sh` and start the cluster.
 You can optionally add the `./bin/` directory (which contains `hisk8s.sh` script)
 to your binaries search path.
 
-    $ # export PATH=$PATH:$(pwd -P)/bin/ # Optionally
+    $ # export PATH=$PATH:$(pwd -P)/bin/  # Optionally
 
-    $ hisk8s.sh                         # Getting some helps
-    $ hisk8s.sh _env                    # Print basic information
-    $ hisk8s.sh _test                   # Create new cluster
-    $ hisk8s.sh _kubectl cluster-info   # Get cluster info.
+    $ hisk8s.sh                           # Getting some helps
+    $ hisk8s.sh _env                      # Print basic information
+    $ hisk8s.sh _test                     # Create new cluster
+    $ hisk8s.sh _kubectl cluster-info     # Get cluster info.
 
     Kubernetes master is running at https://127.0.0.1:6443
     CoreDNS is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
