@@ -1,10 +1,10 @@
 ## Bootstrap a k8s cluster the hardway with VirtualBox
 
-[k8s the hardway](https://github.com/kelseyhightower/kubernetes-the-hard-way)
-requires an admin access on GKE.
-I slightly modify the process to bootstrap a k8s cluster
-on my VirtualBox environment (thanks to Vagrant.)
-And yes I have a script to automate the process.
+Scripts that follow
+  [k8s the hardway](https://github.com/kelseyhightower/kubernetes-the-hard-way)
+to bootstrap a k8s cluster in VirtualBox environment with Vagrant.
+
+This scripts only works on Linux 64-bit machines.
 
 ## Getting started
 
@@ -16,30 +16,62 @@ And yes I have a script to automate the process.
   `go get -u github.com/cloudflare/cfssl/cmd/...` and modify your `PATH`
   environment variable to recognize these new tools installed in `$GOPATH/bin`.)
 * [`kubectl` command line](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-binary-using-curl)
+  and optionally `helm`. If you are running Linux 64-bit, you can skip
+  this step as the script can download `kubectl` or `helm` automatically.
 
 ### Bootstrapping the cluster
 
-Edit some basic settings in `./etc/custom.env.sh` and start the cluster:
+Edit some basic settings in `./etc/custom.env.sh` and start the cluster.
+You can optionally add the `./bin/` directory (which contains `hisk8s.sh` script)
+to your binaries search path.
 
-    $ ./bin/hisk8s.sh        # Getting some helps
-    $ ./bin/hisk8s.sh _env   # Print basic information
-    $ ./bin/hisk8s.sh _test  # Create new cluster
+    $ # export PATH=$PATH:$(pwd -P)/bin/ # Optionally
+
+    $ hisk8s.sh                         # Getting some helps
+    $ hisk8s.sh _env                    # Print basic information
+    $ hisk8s.sh _test                   # Create new cluster
+    $ hisk8s.sh _kubectl cluster-info   # Get cluster info.
+
+    Kubernetes master is running at https://127.0.0.1:6443
+    CoreDNS is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+    To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+
+**Notes:** During the bootstrapping phase, the command `hisk8s.sh _test`
+may fail at some step. You can start from the last known step:
+
+    $ hisk8s.sh _test
+    # <snip>
+    :: Executing _some_internal_step
+    # <snip>
+    :: ==========================
+    :: Last method: _some_internal_step
+    :: Last method return code: unknown
+
+You can try to get around the issue (or do nothing) and retry
+
+      $ hisk8s.sh _some_internal_step
+
+If everything goes well you can process any steps following this one.
+See a list of all steps as below:
+
+      $ hisk8s.sh _steps
 
 ### Testing
 
 #### Running smoke tests
 
-These tests are inspired by the original `k8s the hard way`; you have
-to clean up the pods and services after the tests. You may want to skip
-to the next section instead.
+You may want to skip to the next section instead.
 
-    $ ./bin/hisk8s.sh _smoke_tests
-    $ ./bin/hisk8s.sh _smoke_test_deploy_app
+These tests are inspired by the original `k8s the hard way`; you have
+to clean up the pods and services after the tests.
+
+    $ hisk8s.sh _smoke_tests
+    $ hisk8s.sh _smoke_test_deploy_app
 
 `kubectl` configuration will be stored under `./etc/.kube/config`.
 You can execute the tool via the wrapper, for examples:
 
-    $ ./bin/hisk8s.sh _kubectl get nodes
+    $ hisk8s.sh _kubectl get nodes
     NAME         STATUS   ROLES    AGE    VERSION
     worker-141   Ready    <none>   100s   v1.12.0
 
@@ -48,7 +80,9 @@ You can execute the tool via the wrapper, for examples:
 #### Testing with Helm
 
 If you haven't installed `helm`, you can download them with `_wget_hem`
-then move the binary from `caches/` to your search path.
+then optionally move the binary from `caches/` to your search path.
+`hisk8s.sh` will search `helm` in `caches/` after giving up finding
+in your default binaries search path.
 
     $ hisk8s.sh _wget_helm # optionally, binary saved in caches/
     $ hisk8s.sh _helm_init
@@ -87,14 +121,19 @@ The cluster is ready for you.
 
 To enter a node, use the wrapper script:
 
-    $ ./bin/hisk8s.sh _ssh_list
-    $ ./bin/hisk8s.sh _ssh 111
+    $ hisk8s.sh _ssh_list
+    $ hisk8s.sh _ssh 111
 
 You can also use different aliases provided in the output of `_ssh_list`.
 
-### Tear down
+### Known issues
 
-    $ ./bin/hisk8s.sh _vagrant destroy -f
+1. `kube proxy` may not work, as the cluster (aka virtualbox) network
+   is not reachable from your laptop (where `kubectl` installed.)
+
+### Tearing down
+
+    $ hisk8s.sh _vagrant destroy -f
 
 **Important notes**:
 The script is stateless and it doesn't know if you have decreased the

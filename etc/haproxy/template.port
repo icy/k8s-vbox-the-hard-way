@@ -1,0 +1,14 @@
+frontend port${_HAPROXY_PORT}
+    bind *:${_HAPROXY_PORT}
+    mode tcp
+    option tcplog
+    default_backend port${_HAPROXY_PORT}
+    timeout client          5m
+
+backend port${_HAPROXY_PORT}
+    mode tcp
+    balance roundrobin
+    http-check expect status 200
+    timeout connect        60s
+    timeout server          5m
+    ${_HAPROXY_PORT_BACKENDS}

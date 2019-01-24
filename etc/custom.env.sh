@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Exit the script immediately if any error occurs.
+set -e
+
 # Number of workers
 N_WORKERS=1
 # Number of controllers. Use 2 and expect to see split-brain issue ;)
@@ -30,4 +33,13 @@ COREDNS_LOOP=""
 # move fast later.
 #
 # FIXME: We will ensure parallel feature work persistently.
-VAGRANT_PARALLEL=0
+VAGRANT_PARALLEL=0 # Disable
+
+# List of port for automatic mapping/forwarding from Load balancer
+# to on workers. This is useful when working witl NodePort services.
+# You can also add any port to `etc/haproxy/ports`.
+#
+# When you update this variable please execute the step `_lb_update`
+# by invoking `hisk8s.sh _lb_update`. Please note `_lb_update` also
+# sets up VirtualBox port forwarding for the load balancer accordingly.
+HAPROXY_AUTO_PORTS=""

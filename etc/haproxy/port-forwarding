@@ -1,0 +1,6 @@
+#
+# List of ports to forward to workers.
+# See also etc/custom.env.sh, variable: HAPROXY_AUTO_PORTS.
+# When you update this file, remember to execute extep `_lb_update`
+#
+32767

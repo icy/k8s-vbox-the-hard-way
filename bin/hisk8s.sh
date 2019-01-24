@@ -78,6 +78,13 @@ _ssh_list() { #public: List all nodes created by vagrant. Useful for `ssh`-relat
 ## main
 
 env_setup() {
+  if [[ -n "${__ENV_SETUP__:-}" ]]; then
+    return 0
+  fi
+
+  __ENV_SETUP__=1
+  readonly __ENV_SETUP__
+
   # K8s and vbox environments
 
   # Fast
@@ -102,7 +109,7 @@ env_setup() {
   K8S_HELM_TAG="v2.12.2"
   COREDNS_VERSION="1.2.2"
   COREDNS_LOOP="loop"
-  CONTAINDER_TAG="v1.2.2"
+  CONTAINDERD_TAG="v1.2.2"
 
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
@@ -127,6 +134,8 @@ env_setup() {
   IP_LB="${IP_PREFIX}.100"
   LOAD_BALANCER="lb-100"
 
+  : "${HAPROXY_AUTO_PORTS:=}"
+
   CONTROLLER_START=110
   WORKER_START=140
 
@@ -147,6 +156,7 @@ env_setup() {
   D_ETC="$D_ROOT/etc/"
   D_CA="$D_ROOT/ca/"
   D_CACHES="$D_ROOT/caches/"
+  HOME="$D_ETC"
 
   if [[ ! -f "$D_BIN/hisk8s.sh" ]]; then
     echo >&2 ":: hisk8s script not found in $D_BIN, or $D_ROOT/$D_BIN is invalid."
@@ -163,6 +173,11 @@ env_setup() {
   else
     echo ":: Custom environment file not found: $D_ETC/custom.env.sh"
   fi
+
+  _HAPROXY_PORTS=""
+  for _port in $(grep -Ee '^[0-9]+$' "$D_ETC/haproxy/port-forwarding"; echo ${HAPROXY_AUTO_PORTS}); do
+    _HAPROXY_PORTS="$_port $_HAPROXY_PORTS"
+  done
 
   if [[ ! "$N_WORKERS" -ge 1 ]]; then
     echo >&2 ":: Number of workers must >= 1."
@@ -204,7 +219,28 @@ _ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes. Use '_ssh 
     return
   fi
 
-  ssh -F "$F_SSH_CONFIG" "$@"
+  HOME="$OHOME" ssh -F "$F_SSH_CONFIG" "$@"
+}
+
+_vboxmanage_port_mapping() {
+  if ! command -v VBoxManage >/dev/null; then
+    echo >&2 ":: Missing VBoxManage command"
+    return 0
+  fi
+
+  for _port in $_HAPROXY_PORTS; do
+    HOME="$OHOME" VBoxManage controlvm ${LOAD_BALANCER} natpf1 "tcp${_port},tcp,,${_port},,${_port}"
+  done
+
+  echo >&2 "::"
+  echo >&2 ":: List of port mappings on Load balancer"
+  HOME="$OHOME" VBoxManage showvminfo  "${LOAD_BALANCER}" | grep "NIC 1"
+
+  echo >&2 "::"
+  echo >&2 ":: To delete these port mappings, use the following command(s)"
+  for _port in $_HAPROXY_PORTS; do
+    echo "# VBoxManage controlvm ${LOAD_BALANCER} natpf1 delete tcp${_port}"
+  done
 }
 
 _ssh_worker() { #public: Execute command on all workers. E.g, `_ssh_worker hostname`
@@ -222,10 +258,10 @@ _ssh_controller() { #public: Execute command on all controllers. E.g, `_ssh_work
 }
 
 _rsync() { #public: A wrapper of `rsync` command, useful when you need to transfer file(s) to any node.
-  rsync -e "ssh -F \"$F_SSH_CONFIG\"" "$@"
+  HOME="$OHOME" rsync -e "ssh -F \"$F_SSH_CONFIG\"" "$@"
 }
 
-__export_env() {
+__remote_env() {
   echo "set -a"
   echo "set -u"
 
@@ -251,7 +287,7 @@ _execute_remote() {
   fi
   for _jnode in $*; do
     {
-      __export_env
+      __remote_env
       declare -f $_fn;
       echo $_fn;
     } \
@@ -259,9 +295,7 @@ _execute_remote() {
   done
 }
 
-_k8s_bootstrapping_lb() {
-  ## dns stuff
-
+_k8s_bootstrapping_lb_vboxdns() {
   _remote() {
     echo Y | sudo pacman -S ruby ruby-dev build-essential
     echo "gem: --no-rdoc --no-ri -V" | sudo tee >/dev/null /etc/gemrc
@@ -278,9 +312,13 @@ _k8s_bootstrapping_lb() {
   _rsync -v "$D_BIN/dns_resolver.rb" $LOAD_BALANCER:~/
 
   _execute_remote : "$LOAD_BALANCER"
+}
 
-  ## haproxy
+_lb_update() { #public: Reconfigure Haproxy and VirtualBox port forwarding on the Load Balancer.
+  _k8s_bootstrapping_lb_haproxy "$@"
+}
 
+_k8s_bootstrapping_lb_haproxy() {
   _remote() {
     echo Y | sudo pacman -S haproxy
     sudo cp -fv haproxy.cfg /etc/haproxy/haproxy.cfg
@@ -288,7 +326,6 @@ _k8s_bootstrapping_lb() {
     sudo systemctl start haproxy
     sudo systemctl restart haproxy
     sudo systemctl status haproxy
-    echo >&2 ":: haproxy available on your shell: http://localhost:1936/haproxy?stats#stats (user: admin, password: admin)"
   }
 
   HAPROXY_K8S_APIS=""
@@ -296,16 +333,34 @@ _k8s_bootstrapping_lb() {
     HAPROXY_K8S_APIS="$HAPROXY_K8S_APIS\n    server $_node $IP_PREFIX.${_node#*-}:6443 check port 80"
   done
 
-  # HAPROXY_K8S_WORKERS=""
-  # for _node in $WORKERS; do
-  #   HAPROXY_K8S_WORKERS="$HAPROXY_K8S_WORKERS\n    server $_node $IP_PREFIX.${_node#*-}:6443 check port 8080"
-  # done
+  for _file in "$D_ETC/haproxy"/*.cfg; do
+    \mv --backup=numbered -fv "$_file" "$_file.backup"
+  done
 
-  _envsubst "$D_ETC/haproxy.cfg.in" "$D_ETC/haproxy.cfg" || return 1
+  for _file in "$D_ETC/haproxy/"*.cfg.in; do
+    _envsubst "${_file}" "${_file%.*}" || return
+  done
+
+  for _HAPROXY_PORT in $_HAPROXY_PORTS; do
+    echo >&2 ":: Haproxy mapping new port ${_HAPROXY_PORT} to workers"
+    _HAPROXY_PORT_BACKENDS=""
+    for _node in $WORKERS; do
+      _HAPROXY_PORT_BACKENDS="$_HAPROXY_PORT_BACKENDS\n    server $_node $IP_PREFIX.${_node#*-}:${_HAPROXY_PORT}"
+    done
+    _envsubst "$D_ETC/haproxy/template.port" "$D_ETC/haproxy/port-${_HAPROXY_PORT}.cfg" || return
+  done
+
+  LC_ALL=C cat "$D_ETC/haproxy"/*.cfg > "$D_ETC/haproxy.cfg" || return
   sed -i -e 's#\\n#\n#g' "$D_ETC/haproxy.cfg"
-  _rsync "$D_ETC/haproxy.cfg" "$LOAD_BALANCER":~/haproxy.cfg
 
+  _rsync "$D_ETC/haproxy.cfg" "$LOAD_BALANCER":~/haproxy.cfg
   _execute_remote : "$LOAD_BALANCER"
+
+  _vboxmanage_port_mapping
+
+  echo >&2 "::"
+  echo >&2 ":: haproxy available on your shell: http://localhost:1936/haproxy?stats#stats (user: admin, password: admin)"
+  echo >&2 ":: haproxy automatically maps the following ports: $_HAPROXY_PORTS"
 }
 
 __k8s_kubelet_client_cert() {
@@ -470,117 +525,117 @@ _k8s_ca_generate() {
 _k8s_kubectl_config_proxy() {
   cd "$D_CA/" || return
 
-  kubectl config set-cluster ${MY_CLUSTER_NAME} \
+  _kubectl config set-cluster ${MY_CLUSTER_NAME} \
     --certificate-authority=ca.pem \
     --embed-certs=true \
     --server=https://${IP_LB}:6443 \
     --kubeconfig=kube-proxy.kubeconfig
 
-  kubectl config set-credentials system:kube-proxy \
+  _kubectl config set-credentials system:kube-proxy \
     --client-certificate=kube-proxy.pem \
     --client-key=kube-proxy-key.pem \
     --embed-certs=true \
     --kubeconfig=kube-proxy.kubeconfig
 
-  kubectl config set-context default \
+  _kubectl config set-context default \
     --cluster=${MY_CLUSTER_NAME} \
     --user=system:kube-proxy \
     --kubeconfig=kube-proxy.kubeconfig
 
-  kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
+  _kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
 }
 
 _k8s_kubectl_config_scheduler() {
   cd "$D_CA/" || return
 
-  kubectl config set-cluster ${MY_CLUSTER_NAME} \
+  _kubectl config set-cluster ${MY_CLUSTER_NAME} \
     --certificate-authority=ca.pem \
     --embed-certs=true \
     --server="https://127.0.0.1:6443" \
     --kubeconfig=kube-scheduler.kubeconfig
 
-  kubectl config set-credentials system:kube-scheduler \
+  _kubectl config set-credentials system:kube-scheduler \
     --client-certificate=kube-scheduler.pem \
     --client-key=kube-scheduler-key.pem \
     --embed-certs=true \
     --kubeconfig=kube-scheduler.kubeconfig
 
-  kubectl config set-context default \
+  _kubectl config set-context default \
     --cluster=${MY_CLUSTER_NAME} \
     --user=system:kube-scheduler \
     --kubeconfig=kube-scheduler.kubeconfig
 
-  kubectl config use-context default --kubeconfig=kube-scheduler.kubeconfig
+  _kubectl config use-context default --kubeconfig=kube-scheduler.kubeconfig
 }
 
 _k8s_kubectl_config_admin() {
   cd "$D_CA/" || return
 
-  kubectl config set-cluster ${MY_CLUSTER_NAME} \
+  _kubectl config set-cluster ${MY_CLUSTER_NAME} \
     --certificate-authority=ca.pem \
     --embed-certs=true \
     --server=https://127.0.0.1:6443 \
     --kubeconfig=admin.kubeconfig
 
-  kubectl config set-credentials admin \
+  _kubectl config set-credentials admin \
     --client-certificate=admin.pem \
     --client-key=admin-key.pem \
     --embed-certs=true \
     --kubeconfig=admin.kubeconfig
 
-  kubectl config set-context default \
+  _kubectl config set-context default \
     --cluster=${MY_CLUSTER_NAME} \
     --user=admin \
     --kubeconfig=admin.kubeconfig
 
-  kubectl config use-context default --kubeconfig=admin.kubeconfig
+  _kubectl config use-context default --kubeconfig=admin.kubeconfig
 }
 
 _k8s_kubectl_config_controller_manager() {
   cd "$D_CA/" || return
 
-  kubectl config set-cluster ${MY_CLUSTER_NAME} \
+  _kubectl config set-cluster ${MY_CLUSTER_NAME} \
     --certificate-authority=ca.pem \
     --embed-certs=true \
     --server=https://127.0.0.1:6443 \
     --kubeconfig=kube-controller-manager.kubeconfig
 
-  kubectl config set-credentials system:kube-controller-manager \
+  _kubectl config set-credentials system:kube-controller-manager \
     --client-certificate=kube-controller-manager.pem \
     --client-key=kube-controller-manager-key.pem \
     --embed-certs=true \
     --kubeconfig=kube-controller-manager.kubeconfig
 
-  kubectl config set-context default \
+  _kubectl config set-context default \
     --cluster=${MY_CLUSTER_NAME} \
     --user=system:kube-controller-manager \
     --kubeconfig=kube-controller-manager.kubeconfig
 
-  kubectl config use-context default --kubeconfig=kube-controller-manager.kubeconfig
+  _kubectl config use-context default --kubeconfig=kube-controller-manager.kubeconfig
 }
 
 _k8s_kubectl_config_kubelet() {
   cd "$D_CA/" || return
 
   for _node in $WORKERS; do
-    kubectl config set-cluster ${MY_CLUSTER_NAME} \
+    _kubectl config set-cluster ${MY_CLUSTER_NAME} \
       --certificate-authority=ca.pem \
       --embed-certs=true \
       --server=https://${IP_LB}:6443 \
       --kubeconfig=${_node}.kubeconfig
 
-    kubectl config set-credentials system:node:${_node} \
+    _kubectl config set-credentials system:node:${_node} \
       --client-certificate=${_node}.pem \
       --client-key=${_node}-key.pem \
       --embed-certs=true \
       --kubeconfig=${_node}.kubeconfig
 
-    kubectl config set-context default \
+    _kubectl config set-context default \
       --cluster=${MY_CLUSTER_NAME} \
       --user=system:node:${_node} \
       --kubeconfig=${_node}.kubeconfig
 
-    kubectl config use-context default --kubeconfig=${_node}.kubeconfig
+    _kubectl config use-context default --kubeconfig=${_node}.kubeconfig
   done
 }
 
@@ -684,6 +739,7 @@ _k8s_bootstrapping_control_plane() {
     echo ":: Bootstrapping control plane on $_node"
 
     _rsync -rav "$D_CACHES/controller/" "$_node":~/
+    _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
 
     ETCD_NODES=""
     for _jnode in $CONTROLLERS; do
@@ -716,8 +772,9 @@ _wget_control_plane() {
   __wget \
     "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-apiserver" \
     "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-controller-manager" \
-    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-scheduler" \
-    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubectl"
+    "https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-scheduler"
+
+  _wget_kubectl
 }
 
 _k8s_bootstrapping_rbac_cluster_role() {
@@ -758,10 +815,11 @@ _wget_worker() {
     https://storage.googleapis.com/kubernetes-the-hard-way/runsc-50c283b9f56bb7200938d9e207355f05f79f0d17 \
     https://github.com/opencontainers/runc/releases/download/v1.0.0-rc5/runc.amd64 \
     https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz \
-    https://github.com/containerd/containerd/releases/download/${CONTAINDER_TAG}/containerd-${CONTAINDER_TAG#v*}.linux-amd64.tar.gz \
-    https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubectl \
+    https://github.com/containerd/containerd/releases/download/${CONTAINDERD_TAG}/containerd-${CONTAINDERD_TAG#v*}.linux-amd64.tar.gz \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-proxy \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubelet
+
+  _wget_kubectl
 }
 
 _k8s_bootstrapping_worker() {
@@ -785,7 +843,7 @@ _k8s_bootstrapping_worker() {
     sudo cp -fuv kubectl kube-proxy kubelet runc runsc /usr/local/bin/
     sudo tar -xvf crictl-${K8S_CRIT_TAG}-linux-amd64.tar.gz -C /usr/local/bin/
     sudo tar -xvf cni-plugins-amd64-v0.6.0.tgz -C /opt/cni/bin/
-    sudo tar -xvf containerd-${CONTAINDER_TAG#v*}.linux-amd64.tar.gz -C /
+    sudo tar -xvf containerd-${CONTAINDERD_TAG#v*}.linux-amd64.tar.gz -C /
 
     sudo rm -rf /etc/cni/net.d/
     sudo mkdir -pv /etc/cni/net.d/
@@ -825,6 +883,7 @@ _k8s_bootstrapping_worker() {
     _envsubst "$D_ETC/kubelet-config.yaml.in"     "$D_ETC/$_node.kubelet-config.yaml"
 
     _rsync -rapv "$D_CACHES/worker/" $_node:~/
+    _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
     _rsync -av \
       "$D_ETC/containerd.config.toml" \
       "$D_ETC/containerd.service" \
@@ -868,20 +927,20 @@ _k8s_bootstrapping_kubectl_config() {
 
   KUBERNETES_PUBLIC_ADDRESS="127.0.0.1"
 
-  kubectl config set-cluster ${MY_CLUSTER_NAME} \
+  _kubectl config set-cluster ${MY_CLUSTER_NAME} \
     --certificate-authority=ca.pem \
     --embed-certs=true \
     --server=https://${KUBERNETES_PUBLIC_ADDRESS}:6443
 
-  kubectl config set-credentials admin \
+  _kubectl config set-credentials admin \
     --client-certificate=admin.pem \
     --client-key=admin-key.pem
 
-  kubectl config set-context ${MY_CLUSTER_NAME} \
+  _kubectl config set-context ${MY_CLUSTER_NAME} \
     --cluster=${MY_CLUSTER_NAME} \
     --user=admin
 
-  kubectl config use-context ${MY_CLUSTER_NAME}
+  _kubectl config use-context ${MY_CLUSTER_NAME}
 }
 
 _smoke_tests() { #public: Run some simple smoke tests against new cluster
@@ -934,7 +993,17 @@ _smoke_test_control_plane() {
 
 _kubectl() { #public: A wrapper of kubectl. E.g., `_kubectl get pods --all-namespaces`
   HOME="$D_ETC/"
-  kubectl --context="$MY_CLUSTER_NAME" "$@"
+  if command -v kubectl >/dev/null; then
+    kubectl --context="$MY_CLUSTER_NAME" "$@"
+    return
+  fi
+  local _c_kubectl="$D_CACHES/kubectl-${K8S_BUNDLE_TAG}"
+  if command -v "$_c_kubectl" >/dev/null; then
+    "$_c_kubectl" "$@"
+  else
+    _wget_kubectl
+    "$_c_kubectl" "$@"
+  fi
 }
 
 _smoke_test_etcd() { #public: Simple smoke tests against etcd setup.
@@ -977,23 +1046,25 @@ _wget_helm() { #public: Download helm binary to $D_CACHES/ directory
   __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz
   tar xfvz helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz linux-amd64/helm
   mv linux-amd64/helm "./helm-${K8S_HELM_TAG}"
+  chmod 755 "./helm-${K8S_HELM_TAG}"
   ls -la helm-*
 }
 
 _wget_kubectl() { #public: Download kubectl binary to $D_CACHES/ directory.
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget -O kubectl-"${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"$K8S_BUNDLE_TAG}"/bin/darwin/amd64/kubectl
+  __wget -O "./kubectl-${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/linux/amd64/kubectl
+  chmod -c 755 "./kubectl-${K8S_BUNDLE_TAG}"
   ls -la kubectl-*
 }
 
 __wget() {
-  echo >&2 ":: Downloading:"
+  echo >&2 ":: Downloading [to $D_CACHES]:"
   for _uri in $*; do
     echo >&2 "   - $_uri"
   done
 
-  wget -c -q --https-only --show-progress --timestamping "$@"
+  HOME="$OHOME" wget -c -q --https-only --show-progress --timestamping "$@"
 }
 
 _remote_install_kubectl() {
@@ -1013,21 +1084,25 @@ _remote_install_kubectl() {
 
 _helm() { #public: A wrapper of helm command
   HOME="$D_ETC/"
-  helm "$@"
+  if command -v helm >/dev/null; then
+    helm "$@"
+    return
+  fi
+  local _c_helm="$D_CACHES/helm-${K8S_HELM_TAG}"
+  if command -v "$_c_helm" >/dev/null; then
+    "$_c_helm" "$@"
+  else
+    echo >&2 ":: Missing helm-${K8S_HELM_TAG} in your search path. Downloading them now."
+    _wget_helm
+    "$_c_helm" "$@"
+  fi
 }
 
-# The plugin is loaded by default...
-# _helm_init_plugin_diff() { #public: Install diff plugin for helm
-#   HOME="$D_ETC/"
-#   helm plugin install https://github.com/databus23/helm-diff --version master
-# }
-
 _helm_init() { #public: Install and patch `helm` settings.
-  HOME="$D_ETC/"
-  helm init
-  kubectl create serviceaccount --namespace kube-system tiller
-  kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-  kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+  _helm init
+  _kubectl create serviceaccount --namespace kube-system tiller
+  _kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+  _kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
 }
 
 _steps() { #public: Default steps to bootstrap new k8s cluster
@@ -1043,7 +1118,8 @@ _test() { #public: Default test (See README#getting-started). Create new cluster
   __execute __require
   __execute _vagrant up
   __execute _k8s_bootstrapping_ca
-  __execute _k8s_bootstrapping_lb
+  __execute _k8s_bootstrapping_lb_vboxdns
+  __execute _k8s_bootstrapping_lb_haproxy
   __execute _k8s_bootstrapping_etcd
   __execute _k8s_encryption_key_gen
   __execute _k8s_bootstrapping_control_plane
@@ -1083,7 +1159,6 @@ __execute() {
 
 __require() {
   local _commons="
-    kubectl \
     cfssl \
     envsubst \
     vagrant \
@@ -1135,7 +1210,7 @@ Kubernetes:
   Etcd version:         $_sig$ETCD_TAG
   Coredns version:      $_sig$COREDNS_VERSION
   Coredns loop:         $_sig${COREDNS_LOOP:-disabled}
-  Containerd version:   $_sig${CONTAINDER_TAG}
+  Containerd version:   $_sig${CONTAINDERD_TAG}
   Kube configuration:   $_sig$D_ETC/.kube/config
   Kubectl wrapper:      $_sig$D_BIN/_kubectl
 
@@ -1145,6 +1220,10 @@ DNS resolver:
   controller-*:         ${_sig}Resolved to controller's address
   worker-*:             ${_sig}Resolved to worker's address
 EOF
+}
+
+_k8s_app_dashboard() { #public: Install a simple k8s Dashboard (https://github.com/kubernetes/dashboard)
+  _kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v1.10.1/src/deploy/recommended/kubernetes-dashboard.yaml
 }
 
 _me_list_public_methods() {

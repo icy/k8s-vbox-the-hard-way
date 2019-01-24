@@ -24,3 +24,10 @@ etc/vboxdns.service
 etc/vboxdns.service
 etc/worker-*
 machines/*
+etc/encryption-config.yaml
+etc/haproxy/*.cfg
+etc/haproxy/*.backup*
+*.rej
+*.orig
+etc/haproxy*
+etc/kube-proxy.service

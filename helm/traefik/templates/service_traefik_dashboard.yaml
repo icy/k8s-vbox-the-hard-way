@@ -3,7 +3,7 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: traefik-ingress-dashboard
+  name: traefik-dashboard
   namespace: kube-system
 spec:
   selector:
@@ -16,7 +16,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: traefik-ingress-dashboard-ingress
+  name: traefik-dashboard
   namespace: kube-system
   annotations:
     kubernetes.io/ingress.class: traefik
@@ -27,7 +27,7 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: traefik-ingress-dashboard
+          serviceName: traefik-dashboard
           servicePort: 80
   #tls:
   # - secretName: foobar
