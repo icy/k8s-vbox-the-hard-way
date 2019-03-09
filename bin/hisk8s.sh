@@ -844,7 +844,7 @@ _k8s_bootstrapping_worker() {
     sudo chmod +x kubectl kube-proxy kubelet runc runsc
     sudo cp -fuv kubectl kube-proxy kubelet runc runsc /usr/local/bin/
     sudo tar -xvf crictl-${K8S_CRIT_TAG}-linux-amd64.tar.gz -C /usr/local/bin/
-    sudo tar -xvf cni-plugins-amd64-v0.6.0.tgz -C /opt/cni/bin/
+    sudo tar -xvf cni-plugins-amd64-${CNI_PLUGINS_TAG}.tgz -C /opt/cni/bin/
     sudo tar -xvf containerd-${CONTAINDERD_TAG#v*}.linux-amd64.tar.gz -C /
 
     sudo rm -rf /etc/cni/net.d/
