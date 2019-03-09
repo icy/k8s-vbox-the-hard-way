@@ -1211,6 +1211,8 @@ Kubernetes:
   Helm version:         $_sig$K8S_HELM_TAG
   Etcd version:         $_sig$ETCD_TAG
   Coredns version:      $_sig$COREDNS_VERSION
+  Runc version:         $_sig$RUNC_TAG
+  CNI plugin version:   $_sig$CNI_PLUGINS_TAG
   Coredns loop:         $_sig${COREDNS_LOOP:-disabled}
   Containerd version:   $_sig${CONTAINDERD_TAG}
   Kube configuration:   $_sig$D_ETC/.kube/config
