@@ -111,6 +111,7 @@ env_setup() {
   COREDNS_LOOP="loop"
   CONTAINDERD_TAG="v1.2.2"
   RUNC_TAG="v1.0.0-rc6"
+  CNI_PLUGINS_TAG="v0.7.4"
 
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
@@ -815,7 +816,7 @@ _wget_worker() {
     https://github.com/kubernetes-sigs/cri-tools/releases/download/${K8S_CRIT_TAG}/crictl-${K8S_CRIT_TAG}-linux-amd64.tar.gz \
     https://storage.googleapis.com/kubernetes-the-hard-way/runsc-50c283b9f56bb7200938d9e207355f05f79f0d17 \
     https://github.com/opencontainers/runc/releases/download/${RUNC_TAG}/runc.amd64 \
-    https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz \
+    https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_TAG}/cni-plugins-amd64-${CNI_PLUGINS_TAG}.tgz \
     https://github.com/containerd/containerd/releases/download/${CONTAINDERD_TAG}/containerd-${CONTAINDERD_TAG#v*}.linux-amd64.tar.gz \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kube-proxy \
     https://storage.googleapis.com/kubernetes-release/release/${K8S_BUNDLE_TAG}/bin/linux/amd64/kubelet
