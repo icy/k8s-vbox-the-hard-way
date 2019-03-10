@@ -3,8 +3,17 @@
 Scripts that follow
   [k8s the hardway](https://github.com/kelseyhightower/kubernetes-the-hard-way)
 to bootstrap a k8s cluster in VirtualBox environment with Vagrant.
-
 This scripts only works on Linux 64-bit machines.
+New cluster has the following components
+
+    Bundle version:           v1.12.0
+    Helm version:             v2.12.2
+    Etcd version:             v3.3.9
+    Coredns version:          1.2.2
+    Runc version:             v1.0.0-rc6
+    CNI plugin version:       v0.7.4
+    Coredns loop:             disabled
+    Containerd version:       v1.2.2
 
 ## Getting started
 
