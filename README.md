@@ -163,8 +163,26 @@ The list of all steps as in
 
   https://github.com/kelseyhightower/kubernetes-the-hard-way#labs
 
-can be seen by using the `_steps` method:
-
-    $ hisk8s.sh _steps
-
+can be seen by using the `_steps` method.
 This prints the definition of the `_test` method.
+
+    $ ./bin/hisk8s.sh _steps
+    _test ()
+    {
+        set -xe;
+        __execute __require;
+        __execute _vagrant up;
+        __execute _k8s_bootstrapping_ca;
+        __execute _k8s_bootstrapping_lb_vboxdns;
+        __execute _k8s_bootstrapping_lb_haproxy;
+        __execute _k8s_bootstrapping_etcd;
+        __execute _k8s_encryption_key_gen;
+        __execute _k8s_bootstrapping_control_plane;
+        __execute _k8s_bootstrapping_worker;
+        __execute _k8s_worker_routing;
+        __execute _k8s_bootstrapping_kubectl_config;
+        __execute _k8s_bootstrapping_coredns;
+        __execute _k8s_bootstrapping_rbac_cluster_role;
+        set +x;
+        _welcome
+    }
