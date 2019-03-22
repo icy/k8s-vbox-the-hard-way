@@ -113,6 +113,9 @@ env_setup() {
   RUNC_TAG="v1.0.0-rc6"
   CNI_PLUGINS_TAG="v0.7.4"
 
+  # Remove /var/lib/etcd
+  K8S_ETCD_PRUNE="false"
+
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
   # This address is used by `kubelet`  (etc/kubelet-config.yaml.in)
@@ -231,6 +234,11 @@ _vboxmanage_port_mapping() {
   fi
 
   for _port in $_HAPROXY_PORTS; do
+    HOME="$OHOME" VBoxManage showvminfo  "${LOAD_BALANCER}" \
+    | grep "NIC 1" \
+    | grep -q "tcp${_port}" \
+    && continue
+
     HOME="$OHOME" VBoxManage controlvm ${LOAD_BALANCER} natpf1 "tcp${_port},tcp,,${_port},,${_port}"
   done
 
@@ -654,7 +662,9 @@ _k8s_bootstrapping_etcd() {
     sudo mv etcd-${ETCD_TAG}-linux-amd64/etcd* /usr/local/bin/
 
     sudo systemctl stop etcd
-    sudo rm -rfv /var/lib/etcd/
+    if [[ "${K8S_ETCD_PRUNE:-false}" == "true" ]]; then
+      sudo rm -rfv /var/lib/etcd/
+    fi
     sudo mkdir -p /etc/etcd /var/lib/etcd
 
     sudo cp ca.pem kubernetes-key.pem kubernetes.pem /etc/etcd/
@@ -1112,7 +1122,20 @@ _steps() { #public: Default steps to bootstrap new k8s cluster
 }
 
 _welcome() {
-  echo >&2 ":: Congratulations. Your cluster has been up."
+  cat 2>&2 <<'EOF'
+( )   ( )                           (_ )              ( )_
+`\`\_/'/'_    _   _  _ __       ___  | |  _   _   ___ | ,_)   __   _ __
+  `\ /'/'_`\ ( ) ( )( '__)    /'___) | | ( ) ( )/',__)| |   /'__`\( '__)
+   | |( (_) )| (_) || |      ( (___  | | | (_) |\__, \| |_ (  ___/| |
+   (_)`\___/'`\___/'(_)      `\____)(___)`\___/'(____/`\__)`\____)(_)
+                                                                _
+ _                                                             ( )
+(_)  ___      ___     _    _   _   _     _ __   __     _ _    _| | _   _
+| |/',__)   /' _ `\ /'_`\ ( ) ( ) ( )   ( '__)/'__`\ /'_` ) /'_` |( ) ( )
+| |\__, \   | ( ) |( (_) )| \_/ \_/ |   | |  (  ___/( (_| |( (_| || (_) | _
+(_)(____/   (_) (_)`\___/'`\___x___/'   (_)  `\____)`\__,_)`\__,_)`\__, |(_)
+                                                                  ( )_| |
+EOF
 }
 
 _test() { #public: Default test (See README#getting-started). Create new cluster and test.
@@ -1223,6 +1246,12 @@ DNS resolver:
   *.k8s, k8s:           ${_sig}Resolved to workers' addresses
   controller-*:         ${_sig}Resolved to controller's address
   worker-*:             ${_sig}Resolved to worker's address
+
+Other information:
+
+  hisk8s launches node in parallel:           ${_sig}${VAGRANT_PARALLEL}
+  hisk8s prunes existing etcd database:       ${_sig}${K8S_ETCD_PRUNE}
+  Additional port mapping on load balancer:   ${_sig}${HAPROXY_AUTO_PORTS}
 EOF
 }
 

@@ -31,3 +31,4 @@ etc/haproxy/*.backup*
 *.orig
 etc/haproxy*
 etc/kube-proxy.service
+etc/custom.env.sh

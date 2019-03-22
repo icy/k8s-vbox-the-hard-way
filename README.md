@@ -12,7 +12,6 @@ New cluster has the following components
     Coredns version:          1.2.2
     Runc version:             v1.0.0-rc6
     CNI plugin version:       v0.7.4
-    Coredns loop:             disabled
     Containerd version:       v1.2.2
 
 ## Getting started

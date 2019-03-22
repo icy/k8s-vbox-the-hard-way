@@ -5,6 +5,8 @@ Documentation=https://github.com/coreos
 [Service]
 ExecStart=/usr/local/bin/etcd \
   --name ${ETCD_NAME} \
+  --metrics extensive \
+  --listen-metrics-urls http://0.0.0.0:2381 \
   --cert-file=/etc/etcd/kubernetes.pem \
   --key-file=/etc/etcd/kubernetes-key.pem \
   --peer-cert-file=/etc/etcd/kubernetes.pem \
