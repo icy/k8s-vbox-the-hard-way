@@ -30,6 +30,7 @@ New cluster has the following components
 ### Bootstrapping the cluster
 
 Edit some basic settings in `./etc/custom.env.sh` and start the cluster.
+A sample file can be found here [etc/example_custom.env.sh](./etc/example_custom.env.sh).
 You can optionally add the `./bin/` directory (which contains `hisk8s.sh` script)
 to your binaries search path.
 
