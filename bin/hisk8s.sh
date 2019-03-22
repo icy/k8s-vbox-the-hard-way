@@ -274,6 +274,7 @@ _rsync() { #public: A wrapper of `rsync` command, useful when you need to transf
 __remote_env() {
   echo "set -a"
   echo "set -u"
+  echo "export DEBIAN_FRONTEND=noninteractive"
 
   env \
   | grep -Ee "((^K8S_)|(^IP_)|(^[^[:space:]]+_TAG=))" \
