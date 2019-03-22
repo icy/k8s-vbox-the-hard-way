@@ -14,9 +14,24 @@ New cluster has the following components
     CNI plugin version:       v0.7.4
     Containerd version:       v1.2.2
 
+Table of contents
+
+* [Getting started](#getting-started)
+  * [Installing basic tools](#installing-basic-tools)
+  * [Bootstrapping new cluster](#bootstrapping-new-cluster)
+  * [Testing](#testing)
+    * [Running smoke tests](#running-smoke-tests)
+    * [Testing with Helm](#testing-with-helm)
+  * [Debugging](#debugging)
+  * [Known issues](#known-issues)
+  * [Tearing down](#tearing-down)
+* [In-depth docs, details and customizations](#in-depth-docs-details-and-customizations)
+  * [List of all steps to bootstrap new cluster](#list-of-all-steps-to-bootstrap-new-cluster)
+* [Acknowledgements](#Acknowledgements)
+
 ## Getting started
 
-### Install basic tools
+### Installing basic tools
 
 * VirtualBox (`pacman -S virtualbox`)
 * Vagrant (`pacman -S vagrant`)
@@ -27,7 +42,7 @@ New cluster has the following components
   and optionally `helm`. If you are running Linux 64-bit, you can skip
   this step as the script can download `kubectl` or `helm` automatically.
 
-### Bootstrapping the cluster
+### Bootstrapping new cluster
 
 Edit some basic settings in `./etc/custom.env.sh` and start the cluster.
 A sample file can be found here [etc/example_custom.env.sh](./etc/example_custom.env.sh).
