@@ -146,7 +146,7 @@ You can also use different aliases provided in the output of `_ssh_list`.
 
 **Important notes**:
 The script is stateless and it doesn't know if you have decreased the
-number of workers/controllers. If you change `etc/customizations.env.sh`
+number of workers/controllers. If you change `etc/custom.env.sh`
 the script probably can't help to destroy all nodes. If that's the case,
 the best way is to restore the high number(s) and execute
 
