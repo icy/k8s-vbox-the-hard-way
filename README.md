@@ -27,7 +27,7 @@ Table of contents
   * [Tearing down](#tearing-down)
 * [In-depth docs, details and customizations](#in-depth-docs-details-and-customizations)
   * [List of all steps to bootstrap new cluster](#list-of-all-steps-to-bootstrap-new-cluster)
-* [Acknowledgements](#Acknowledgements)
+* [Acknowledgements](#acknowledgements)
 
 ## Getting started
 
