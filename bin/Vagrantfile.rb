@@ -68,7 +68,7 @@ Vagrant.configure("2") do |config|
       echo "nameserver #{ENV['IP_LB']}" > /etc/resolv.conf
       grep "nameserver" /run/systemd/resolve/stub-resolv.conf >> /etc/resolv.conf
 
-      cp -fv /etc/resolv.conf > /etc/hisk8s-resolv.conf
+      cp -fv /etc/resolv.conf /etc/hisk8s-resolv.conf
     fi
 
 
