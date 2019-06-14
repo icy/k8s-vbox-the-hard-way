@@ -37,9 +37,7 @@ Table of contents
   executes this script belongs to the group `vboxusers`.
 * Vagrant (`pacman -S vagrant`)
 
-The script will detect if your system has the following tools in the search path;
-if any of them is not found, the script can try to download the tool and store them
-locally under the cache directory (`caches/`):
+The script download and store the following tools in local cache directory:
 
 * [Cloudflare PKI toolkit](https://github.com/cloudflare/cfssl)
 * [`kubectl` command line](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-binary-using-curl)

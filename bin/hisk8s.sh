@@ -1262,9 +1262,11 @@ __require() {
     command -V "$_c" > /dev/null || return
   done
 
-  # Make sure we have these two binaries first to avoid piping issue.
-  _cfssl      -h >/dev/null 2>&1
-  _cfssljson  -h >/dev/null 2>&1
+  # FIXME: Should warn user that we will download the files even
+  # FIXME: they already have the files in their search path.
+  _wget_cfssl
+  _wget_helm
+  _wget_kubectl
 }
 
 __trap() {
