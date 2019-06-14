@@ -83,6 +83,16 @@ See a list of all steps as below:
 
 ### Testing
 
+#### The very basic test
+
+When a cluster starts, it also starts some basic pods in `kube-system`
+namespace. The cluster is healthy if these pods are running well
+
+    $ hisk8s.sh _kubectl get pods -n kube-system
+
+If you always see `ContainerCreating` in the command's output there must
+be something wrong. Try to log in to any worker node to debug
+
 #### Running smoke tests
 
 You may want to skip to the next section instead.
@@ -150,6 +160,11 @@ To enter a node, use the wrapper script:
     $ hisk8s.sh _ssh 111
 
 You can also use different aliases provided in the output of `_ssh_list`.
+For worker nodes, most critical logs are sending to journald daemon:
+
+    $ sudo journalctl -f
+
+would give you an idea of what's happening in the system.
 
 ### Known issues
 
