@@ -33,7 +33,8 @@ Table of contents
 
 ### Installing basic tools
 
-* VirtualBox (`pacman -S virtualbox`)
+* VirtualBox (`pacman -S virtualbox`). Also make sure the user that
+  executes this script belongs to the group `vboxusers`.
 * Vagrant (`pacman -S vagrant`)
 
 The script will detect if your system has the following tools in the search path;
