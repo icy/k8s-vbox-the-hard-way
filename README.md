@@ -96,7 +96,8 @@ namespace. The cluster is healthy if these pods are running well
     coredns-699f8ddd77-xstzw   1/1     Running   0          31s
 
 If you always see `ContainerCreating` in the command's output there must
-be something wrong. Try to log in to any worker node to debug
+be something wrong. Try to log in to any worker node to debug. However,
+try to wait a few seconds first;)
 
 #### Running smoke tests
 
@@ -128,9 +129,22 @@ in your default binaries search path.
     $ hisk8s.sh _helm_init
     $ hisk8s.sh _test_hem
 
-This will install two helm charts
+After this command, you would get the following error
 
-    $ _helm list
+    Error: could not find a ready tiller pod
+
+That's because there are some delays. Please wait a few seconds and type
+the following command
+
+    $ hisk8s.sh _kubectl get pods -n kube-system
+
+to see that your `tiller-deploy-*` pods are running well. Then you try
+to execute `_test_helm` again
+
+    $ hisk8s.sh _kubectl get pods -n kube-system|grep tiller
+    tiller-deploy-865b88d89-xf2s4      1/1     Running   0          4m10s
+    $ hisk8s.sh _test_helm
+    $ hisk8s.sh _helm list
     NAME    REVISION        UPDATED                         STATUS          CHART           APP VERSION     NAMESPACE
     empty   1               Sun Jan 20 14:39:19 2019        DEPLOYED        empty-0.1.0     1.0             default
     traefik 1               Sun Jan 20 14:39:19 2019        DEPLOYED        traefik-0.1.0   1.0             default
