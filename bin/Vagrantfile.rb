@@ -68,7 +68,11 @@ Vagrant.configure("2") do |config|
     pacman -Sy
 
     # Restarting to recognize new nameserver settings.
-    systemctl restart networking
+    systemctl restart networking \
+    || systemctl restart systemd-networkd
+
+    # Who cares?
+    systemctl restart systemd-resolved
 
     #{f_contents}
   SHELL
