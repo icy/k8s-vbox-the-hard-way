@@ -229,5 +229,5 @@ This prints the definition of the `_test` method.
 
 * `@hungdo` (Telegram) for testing and reporting the issue
   (9b2391d1fa41a985acc158c73a686a4485b25bf0)
-* @buom (Telegram) for testing and reporting some issue
+* `@buomQ` (Telegram) for testing and reporting some issue
   (network provisioning, helm)
