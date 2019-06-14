@@ -60,7 +60,12 @@ Vagrant.configure("2") do |config|
 
     # Using the load balancer as dns server
     if [[ -n "#{ENV['IP_LB']}" ]]; then
-      echo "nameserver #{ENV['IP_LB']}" > /etc/resolvconf/resolv.conf.d/head
+      # Ubuntu 16.04 ...
+      # echo "nameserver #{ENV['IP_LB']}" > /etc/resolvconf/resolv.conf.d/head
+      # and the nightmare Ubuntu 18.04 ...
+      rm -fv /etc/resolv.conf
+      echo "nameserver #{ENV['IP_LB']}" > /etc/resolv.conf
+      echo "nameserver #{ENV['IP_LB']}" > /etc/hisk8s-resolv.conf
     fi
 
     wget -O /usr/bin/pacman https://github.com/icy/pacapt/raw/ng/pacapt

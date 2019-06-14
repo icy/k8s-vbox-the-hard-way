@@ -15,8 +15,7 @@ clusterDNS:
 podCIDR: "${IP_POD_RANGE}"
 # The resolvConf configuration is used to avoid loops when using CoreDNS
 # for service discovery on systems running systemd-resolved.
-# FIXME: The following path is only valid on Ubuntu system.
-resolvConf: "/run/systemd/resolve/resolv.conf"
+resolvConf: "/etc/hisk8s-resolv.conf"
 runtimeRequestTimeout: "15m"
 tlsCertFile: "/var/lib/kubelet/${_node}.pem"
 tlsPrivateKeyFile: "/var/lib/kubelet/${_node}-key.pem"
