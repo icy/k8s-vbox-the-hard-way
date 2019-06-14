@@ -64,9 +64,13 @@ Vagrant.configure("2") do |config|
       # echo "nameserver #{ENV['IP_LB']}" > /etc/resolvconf/resolv.conf.d/head
       # and the nightmare Ubuntu 18.04 ...
       rm -fv /etc/resolv.conf
+
       echo "nameserver #{ENV['IP_LB']}" > /etc/resolv.conf
-      echo "nameserver #{ENV['IP_LB']}" > /etc/hisk8s-resolv.conf
+      grep "nameserver" /run/systemd/resolve/stub-resolv.conf >> /etc/resolv.conf
+
+      cp -fv /etc/resolv.conf > /etc/hisk8s-resolv.conf
     fi
+
 
     wget -O /usr/bin/pacman https://github.com/icy/pacapt/raw/ng/pacapt
     chmod 755 /usr/bin/pacman
