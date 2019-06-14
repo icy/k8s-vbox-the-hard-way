@@ -159,6 +159,8 @@ You can also use different aliases provided in the output of `_ssh_list`.
    the commmand `VBoxManage list runningvms`. If you see empty output,
    there would be a problem with vbox driver. Please reboot your machine
    (the easy way) or reload your vbox drivers (the hard way).
+1. `Failed to restart networking.service`: Never mind, the script will
+    try another way to reload virtual machine network service.
 
 ### Tearing down
 
