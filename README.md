@@ -20,6 +20,7 @@ Table of contents
   * [Installing basic tools](#installing-basic-tools)
   * [Bootstrapping new cluster](#bootstrapping-new-cluster)
   * [Testing](#testing)
+    * [The very basic test](#the-very-basic-test)
     * [Running smoke tests](#running-smoke-tests)
     * [Testing with Helm](#testing-with-helm)
   * [Debugging](#debugging)
