@@ -1261,6 +1261,10 @@ __require() {
   for _c in ${*:-$_commons}; do
     command -V "$_c" > /dev/null || return
   done
+
+  # Make sure we have these two binaries first to avoid piping issue.
+  _cfssl      -h >/dev/null 2>&1
+  _cfssljson  -h >/dev/null 2>&1
 }
 
 __trap() {
