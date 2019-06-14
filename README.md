@@ -90,6 +90,10 @@ When a cluster starts, it also starts some basic pods in `kube-system`
 namespace. The cluster is healthy if these pods are running well
 
     $ hisk8s.sh _kubectl get pods -n kube-system
+    :: Custom environment file not found: /home/testing/src/k8s-vbox-the-hard-way/etc//custom.env.sh
+    NAME                       READY   STATUS    RESTARTS   AGE
+    coredns-699f8ddd77-7kwtt   1/1     Running   0          31s
+    coredns-699f8ddd77-xstzw   1/1     Running   0          31s
 
 If you always see `ContainerCreating` in the command's output there must
 be something wrong. Try to log in to any worker node to debug
