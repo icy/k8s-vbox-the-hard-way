@@ -120,12 +120,17 @@ env_setup() {
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
   # This address is used by `kubelet`  (etc/kubelet-config.yaml.in)
   # and also the deployment recipe (etc/coredns.yaml.in)
+  # shellcheck disable=2034
   IP_K8S_CLUSTER_COREDNS="10.32.0.10"
+  # shellcheck disable=2034
   IP_K8S_CLUSTER_RANGE="10.32.0.0/24"
 
+  # shellcheck disable=2034
   IP_K8S_KUBE_PROXY_RANGE="10.11.0.0/16"
 
+  # shellcheck disable=2034
   IP_K8S_POD_RANGE_PREFIX="10.200"
+  # shellcheck disable=2034
   IP_K8S_POD_RANGE="${IP_K8S_POD_RANGE_PREFIX}.0.0/16"
   # FIXME: Mission impossible. Below the value generated on Ubuntu system.
   # FIXME: There is no way to select and/or detect it.
@@ -145,6 +150,7 @@ env_setup() {
   WORKER_START=140
 
   SSH_PORT_PREFIX="10"
+  # shellcheck disable=2034
   VBOX_PRIVATE_NETWORK_NAME="hisk8s"
 
   VAGRANT_PARALLEL=1
@@ -174,6 +180,7 @@ env_setup() {
   # Load custom environments
 
   if [[ -f "$D_ETC/custom.env.sh" ]]; then
+    # shellcheck disable=1090
     source "$D_ETC/custom.env.sh" || return
   else
     echo ":: Custom environment file not found: $D_ETC/custom.env.sh"
@@ -197,14 +204,14 @@ env_setup() {
   n="$N_WORKERS"
   WORKERS=""
   while (( n )); do
-    WORKERS="$WORKERS worker-$(( n + $WORKER_START ))"
+    WORKERS="$WORKERS worker-$(( n + WORKER_START ))"
     (( n -- ))
   done
 
   n="$N_CONTROLLERS"
   CONTROLLERS=""
   while (( n )); do
-    CONTROLLERS="$CONTROLLERS controller-$(( n + $CONTROLLER_START ))"
+    CONTROLLERS="$CONTROLLERS controller-$(( n + CONTROLLER_START ))"
     (( n -- ))
   done
 
@@ -219,7 +226,7 @@ env_setup() {
 }
 
 _ssh() { #public: ssh to any node. Use `_ssh_list` to list all nodes. Use '_ssh list' to list all aliases.
-  if [[ "${@:-}" == "list" ]]; then
+  if [[ "${*:-}" == "list" ]]; then
     _ssh_list
     return
   fi
@@ -255,14 +262,14 @@ _vboxmanage_port_mapping() {
 
 _ssh_worker() { #public: Execute command on all workers. E.g, `_ssh_worker hostname`
   for _node in $WORKERS; do
-    echo >&2 ":: $_node: Executing '$@'"
+    echo >&2 ":: $_node: Executing '$*'"
     _ssh -n "$_node" "$@"
   done
 }
 
 _ssh_controller() { #public: Execute command on all controllers. E.g, `_ssh_worker hostname`
   for _node in $CONTROLLERS; do
-    echo >&2 ":: $_node: Executing '$@'"
+    echo >&2 ":: $_node: Executing '$*'"
     _ssh -n "$_node" "$@"
   done
 }
@@ -271,6 +278,7 @@ _rsync() { #public: A wrapper of `rsync` command, useful when you need to transf
   HOME="$OHOME" rsync -e "ssh -F \"$F_SSH_CONFIG\"" "$@"
 }
 
+# shellcheck disable=2120
 __remote_env() {
   echo "set -a"
   echo "set -u"
@@ -296,7 +304,7 @@ _execute_remote() {
   if [[ "$_fn" == ":" ]]; then
     _fn="_remote"
   fi
-  for _jnode in $*; do
+  for _jnode in "$@"; do
     {
       __remote_env
       declare -f $_fn;
@@ -453,7 +461,9 @@ _ssl_generate() { #public: Generate self-sign ssl for a list of domains. Syntax:
   # Generate ca-key.pem, ca.csr (not used), ca.pem
   cfssl gencert -initca ca-csr.json | cfssljson -bare ca -
 
+  # shellcheck disable=2034
   SELF_SIGNED_CN_NAME="$_first_site"
+  # shellcheck disable=2034
   SELF_SIGNED_SSL_HOSTS="$_hosts"
   # cfssl print-defaults csr > server.json.in
   _envsubst "server.json.in" "server.json"
@@ -704,6 +714,7 @@ _k8s_encryption_key_gen() {
   F_CONFIG="$D_ETC/encryption-config.yaml"
 
   if [[ ! -f "$F_CONFIG" ]]; then
+    # shellcheck disable=2034
     ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
     _envsubst "$F_CONFIG.in" "$F_CONFIG" || return 1
   else
@@ -759,7 +770,9 @@ _k8s_bootstrapping_control_plane() {
       ETCD_NODES="https://${IP_PREFIX}.${_jnode#*-}:2379,$ETCD_NODES"
     done
 
+    # shellcheck disable=2034
     ETCD_NODES="${ETCD_NODES%,*}" # remove the last ,
+    # shellcheck disable=2034
     IP_KUBE_API_SERVER_ADVERTISE="${IP_PREFIX}.${_node#*-}"
 
     _envsubst "$D_ETC/kube-apiserver.service.in"  "$D_ETC/kube-apiserver.service" || return 1
@@ -887,13 +900,15 @@ _k8s_bootstrapping_worker() {
   for _node in $WORKERS; do
     echo "::"
     echo ":: Bootstrapping worker $_node"
+    # shellcheck disable=2034
     IP_POD_RANGE="${IP_K8S_POD_RANGE_PREFIX}.${_node#*-}.0/24"
+    # shellcheck disable=2034
     IP_NODEPORT_RANGES="${IP_PREFIX}.${_node#*-}/32"
 
     _envsubst "$D_ETC/kube-proxy.service.in"          "$D_ETC/$_node.kube-proxy.service"
-    _envsubst "$D_ETC/10-bridge.conf.in"          "$D_ETC/$_node.10-bridge.conflist"
-    _envsubst "$D_ETC/kube-proxy-config.yaml.in"     "$D_ETC/kube-proxy-config.yaml"
-    _envsubst "$D_ETC/kubelet-config.yaml.in"     "$D_ETC/$_node.kubelet-config.yaml"
+    _envsubst "$D_ETC/10-bridge.conf.in"              "$D_ETC/$_node.10-bridge.conflist"
+    _envsubst "$D_ETC/kube-proxy-config.yaml.in"      "$D_ETC/kube-proxy-config.yaml"
+    _envsubst "$D_ETC/kubelet-config.yaml.in"         "$D_ETC/$_node.kubelet-config.yaml"
 
     _rsync -rapv "$D_CACHES/worker/" $_node:~/
     _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
@@ -1004,7 +1019,22 @@ _smoke_test_control_plane() {
   curl -s -H \"Host: kubernetes.default.svc.cluster.local\" -i http://127.0.0.1/healthz >/dev/null
 }
 
-_kubectl() { #public: A wrapper of kubectl. E.g., `_kubectl get pods --all-namespaces`
+_cfssl() { # public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
+  if command -v cfssl >/dev/null; then
+    cfssl "$@"
+    return
+  fi
+
+  local _c="$D_CACHES/cfssl_linux-amd64"
+  if command -v "$_c" >/dev/null; then
+    "$_c" "$@"
+  else
+    _wget_cfssl
+    "$_c" "$@"
+  fi
+}
+
+_kubectl() { #public: A wrapper of kubectl, fallback to $D_CACHES/kubectl-*
   HOME="$D_ETC/"
   if command -v kubectl >/dev/null; then
     kubectl --context="$MY_CLUSTER_NAME" "$@"
@@ -1053,7 +1083,14 @@ _smoke_test_lb() { #public: Simple smoke tests against custom DNS and Load balan
   echo >&2 ":: Haproxy stats: http://localhost:1936/haproxy?stats (user: admin password: admin)"
 }
 
-_wget_helm() { #public: Download helm binary to $D_CACHES/ directory
+_wget_cfssl() { #private: Download cfssl binary to $D_CACHES/ directory
+  mkdir -pv "$D_CACHES/"
+  cd "$D_CACHES/" || return
+  __wget "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64"
+  chmod 755 cfssl_linux-amd64
+}
+
+_wget_helm() { #private: Download helm binary to $D_CACHES/ directory
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
   __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz
@@ -1063,7 +1100,7 @@ _wget_helm() { #public: Download helm binary to $D_CACHES/ directory
   ls -la helm-*
 }
 
-_wget_kubectl() { #public: Download kubectl binary to $D_CACHES/ directory.
+_wget_kubectl() { #private: Download kubectl binary to $D_CACHES/ directory.
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
   __wget -O "./kubectl-${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/linux/amd64/kubectl
@@ -1073,7 +1110,7 @@ _wget_kubectl() { #public: Download kubectl binary to $D_CACHES/ directory.
 
 __wget() {
   echo >&2 ":: Downloading [to $D_CACHES]:"
-  for _uri in $*; do
+  for _uri in "$@"; do
     echo >&2 "   - $_uri"
   done
 
@@ -1095,7 +1132,7 @@ _remote_install_kubectl() {
   echo Y | sudo pacman -S kubectl
 }
 
-_helm() { #public: A wrapper of helm command
+_helm() { #public: A wrapper of helm command, fallback to $D_CACHES/helm-*
   HOME="$D_ETC/"
   if command -v helm >/dev/null; then
     helm "$@"

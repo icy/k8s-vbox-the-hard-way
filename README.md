@@ -35,12 +35,14 @@ Table of contents
 
 * VirtualBox (`pacman -S virtualbox`)
 * Vagrant (`pacman -S vagrant`)
-* https://github.com/cloudflare/cfssl (Please install all tools with
-  `go get -u github.com/cloudflare/cfssl/cmd/...` and modify your `PATH`
-  environment variable to recognize these new tools installed in `$GOPATH/bin`.)
+
+The script will detect if your system has the following tools in the search path;
+if any of them is not found, the script can try to download the tool and store them
+locally under the cache directory (`caches/`):
+
+* [Cloudflare PKI toolkit](https://github.com/cloudflare/cfssl)
 * [`kubectl` command line](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-binary-using-curl)
-  and optionally `helm`. If you are running Linux 64-bit, you can skip
-  this step as the script can download `kubectl` or `helm` automatically.
+* [`helm` command line](https://helm.sh/docs/using_helm/#install-kubernetes-or-have-access-to-a-cluster)
 
 ### Bootstrapping new cluster
 
