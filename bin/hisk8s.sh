@@ -1222,7 +1222,6 @@ __execute() {
 
 __require() {
   local _commons="
-    cfssl \
     envsubst \
     vagrant \
     wget \
