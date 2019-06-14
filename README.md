@@ -155,6 +155,10 @@ You can also use different aliases provided in the output of `_ssh_list`.
 
 1. `kube proxy` may not work, as the cluster (aka virtualbox) network
    is not reachable from your laptop (where `kubectl` installed.)
+1. The script reports some vagrant node is not running: Please try with
+   the commmand `VBoxManage list runningvms`. If you see empty output,
+   there would be a problem with vbox driver. Please reboot your machine
+   (the easy way) or reload your vbox drivers (the hard way).
 
 ### Tearing down
 
