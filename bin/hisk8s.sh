@@ -387,13 +387,14 @@ __k8s_kubelet_client_cert() {
   for _node in $WORKERS; do
     _node_fqdn="${_node}.internal"
     _envsubst "$D_ETC/ca/foo-csr.json.in" ${_node}-csr.json || return 1
-    cfssl gencert \
+    _cfssl gencert \
       -ca=ca.pem \
       -ca-key=ca-key.pem \
       -config=ca-config.json \
       -hostname=${IP_LB},${_node},${_node_fqdn},"$IP_PREFIX.${_node#*-}" \
       -profile=kubernetes \
-      ${_node}-csr.json | cfssljson -bare ${_node}
+      ${_node}-csr.json \
+    | _cfssljson -bare ${_node}
   done
 }
 
@@ -411,7 +412,7 @@ _k8s_kubectl_config_distribute() {
   done
 }
 
-_k8s_ca_distrubute() {
+_k8s_ca_distribute() {
   cd "$D_CA/" || return
   for _node in $WORKERS $CONTROLLERS; do
     if [[ "${_node:0:1}" == "w" ]]; then
@@ -428,7 +429,7 @@ _k8s_bootstrapping_ca() {
   cp -fv "$D_ETC/ca/"*.* "$D_CA/"
 
   _k8s_ca_generate
-  _k8s_ca_distrubute
+  _k8s_ca_distribute
 
   _k8s_kubectl_config_kubelet
   _k8s_kubectl_config_proxy
@@ -459,7 +460,8 @@ _ssl_generate() { #public: Generate self-sign ssl for a list of domains. Syntax:
 
   cp -fv "$D_ETC/ca/"/*.* ./
   # Generate ca-key.pem, ca.csr (not used), ca.pem
-  cfssl gencert -initca ca-csr.json | cfssljson -bare ca -
+  _cfssl gencert -initca ca-csr.json \
+  | _cfssljson -bare ca -
 
   # shellcheck disable=2034
   SELF_SIGNED_CN_NAME="$_first_site"
@@ -473,12 +475,12 @@ _ssl_generate() { #public: Generate self-sign ssl for a list of domains. Syntax:
   #
   #   ssl_certificate     server.pem;
   #   ssl_certificate_key server-key.pem;
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -profile=server server.json \
-  | cfssljson -bare server
+  | _cfssljson -bare server
 }
 
 _k8s_ca_generate() {
@@ -488,37 +490,42 @@ _k8s_ca_generate() {
   # - ca-key.pem
   # - ca.csr (will not be used for website self-signed SSL)
   # - ca.pem
-  cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+  _cfssl gencert -initca ca-csr.json \
+  | _cfssljson -bare ca
 
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -profile=kubernetes \
-    admin-csr.json | cfssljson -bare admin
+    admin-csr.json \
+  | _cfssljson -bare admin
 
   __k8s_kubelet_client_cert
 
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -profile=kubernetes \
-    kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
+    kube-controller-manager-csr.json \
+  | _cfssljson -bare kube-controller-manager
 
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -profile=kubernetes \
-    kube-proxy-csr.json | cfssljson -bare kube-proxy
+    kube-proxy-csr.json \
+  | _cfssljson -bare kube-proxy
 
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -profile=kubernetes \
-    kube-scheduler-csr.json | cfssljson -bare kube-scheduler
+    kube-scheduler-csr.json \
+  | _cfssljson -bare kube-scheduler
 
   n=$N_CONTROLLERS
   tmp=""
@@ -527,20 +534,22 @@ _k8s_ca_generate() {
     (( n-- ))
   done
 
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -hostname=${IP_K8S_CLUSTER},${IP_LB}${tmp},127.0.0.1,kubernetes.default \
     -profile=kubernetes \
-    kubernetes-csr.json | cfssljson -bare kubernetes
+    kubernetes-csr.json \
+  | _cfssljson -bare kubernetes
 
-  cfssl gencert \
+  _cfssl gencert \
     -ca=ca.pem \
     -ca-key=ca-key.pem \
     -config=ca-config.json \
     -profile=kubernetes \
-    service-account-csr.json | cfssljson -bare service-account
+    service-account-csr.json \
+  | _cfssljson -bare service-account
 }
 
 _k8s_kubectl_config_proxy() {
@@ -1019,13 +1028,28 @@ _smoke_test_control_plane() {
   curl -s -H \"Host: kubernetes.default.svc.cluster.local\" -i http://127.0.0.1/healthz >/dev/null
 }
 
-_cfssl() { # public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
+_cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
   if command -v cfssl >/dev/null; then
     cfssl "$@"
     return
   fi
 
   local _c="$D_CACHES/cfssl_linux-amd64"
+  if command -v "$_c" >/dev/null; then
+    "$_c" "$@"
+  else
+    _wget_cfssl
+    "$_c" "$@"
+  fi
+}
+
+_cfssljson() { #public: A wrapper of cfssljson, fallback to $D_CACHES/cfssljson_linux-amd64
+  if command -v cfssljson >/dev/null; then
+    cfssljson "$@"
+    return
+  fi
+
+  local _c="$D_CACHES/cfssljson_linux-amd64"
   if command -v "$_c" >/dev/null; then
     "$_c" "$@"
   else
@@ -1086,8 +1110,10 @@ _smoke_test_lb() { #public: Simple smoke tests against custom DNS and Load balan
 _wget_cfssl() { #private: Download cfssl binary to $D_CACHES/ directory
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64"
-  chmod 755 cfssl_linux-amd64
+  __wget \
+    "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64" \
+    "https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64"
+  chmod -c 755 {cfssl,cfssljson}_linux-amd64
 }
 
 _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
