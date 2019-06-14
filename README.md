@@ -161,7 +161,7 @@ To enter a node, use the wrapper script:
     $ hisk8s.sh _ssh 111
 
 You can also use different aliases provided in the output of `_ssh_list`.
-For worker nodes, most critical logs are sending to journald daemon:
+For worker nodes, most critical logs are sent to journald daemon:
 
     $ sudo journalctl -f
 
