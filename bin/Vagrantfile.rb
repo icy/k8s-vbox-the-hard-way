@@ -47,7 +47,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.ssh.insert_key       = false
-  config.ssh.private_key_path =  ["~/.vagrant.d/insecure_private_key", "~/.ssh/id_rsa"]
+  config.ssh.private_key_path =  ["~/.vagrant.d/insecure_private_key"]
 
   f_script = File.join(File.dirname(__FILE__), "provision.sh")
   if File.exists?(f_script)
