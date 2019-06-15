@@ -40,8 +40,8 @@ Vagrant.configure("2") do |config|
     vb.memory = case v_role
     when "controller" then (ENV["MEM_CONTROLLER"] || "1024")
     when "worker" then (ENV["MEM_WORKER"] || "1024")
-    when "lb" then (ENV["MEM_LB"] || "256")
-    else (ENV["MEM_VAGRANT"] || "256")
+    when "lb" then (ENV["MEM_LB"] || "512")
+    else (ENV["MEM_VAGRANT"] || "512")
     end
     vb.name = "#{hostname}"
   end
