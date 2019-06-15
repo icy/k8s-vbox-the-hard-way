@@ -32,18 +32,22 @@ end
 RubyDNS::run_server(INTERFACES) do
   # worker-<index>    returns <IP_PREFIX>.<index>
   # controlle-<index> returns <IP_PREFIX>.<index>
-  match(%r{((worker)|(controller))-([0-9]+)}, IN::A) do |transaction, match_data|
-    transaction.respond!("#{ENV['IP_PREFIX']}.#{match_data[4]}", resource_class: IN::A, ttl: 10)
+  match(%r{((worker)|(controller))-([0-9]+)}, IN::A) do |t, match_data|
+    ip = "#{ENV['IP_PREFIX']}.#{match_data[4]}"
+    STDERR.puts "client #{t.options[:remote_address].ip_address} asked #{t.question} got #{ip}"
+    t.respond!(ip, resource_class: IN::A, ttl: 10)
   end
 
   # k8s   return all workers IPs
-  match(%r{.*k8s$}, IN::A) do |transaction|
-    get_ips("workers").each do |ip|
-      transaction.respond!(ip, resource_class: IN::A, ttl: 10)
+  match(%r{.*k8s$}, IN::A) do |t|
+    ips = get_ips("workers")
+    STDERR.puts "client #{t.options[:remote_address].ip_address} asked #{t.question} got #{ips}"
+    ips.each do |ip|
+      t.respond!(ip, resource_class: IN::A, ttl: 10)
     end
   end
 
-  otherwise do |transaction|
-    transaction.passthrough!(UPSTREAM)
+  otherwise do |t|
+    t.passthrough!(UPSTREAM)
   end
 end
