@@ -35,9 +35,9 @@ COREDNS_LOOP=""
 # FIXME: We will ensure parallel feature work persistently.
 VAGRANT_PARALLEL=0 # Disable
 
-# By default, the script doesn't try to prune any existing etcd database.
+# By default, the script tries to prune any existing etcd database.
 # Setting to true to force a removal (e.g., for a clean cluster.)
-K8S_ETCD_PRUNE=false
+K8S_ETCD_PRUNE=true
 
 # List of port for automatic mapping/forwarding from Load balancer
 # to on workers. This is useful when working witl NodePort services.

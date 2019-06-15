@@ -678,7 +678,8 @@ _k8s_bootstrapping_etcd() {
     sudo mv etcd-${ETCD_TAG}-linux-amd64/etcd* /usr/local/bin/
 
     sudo systemctl stop etcd
-    if [[ "${K8S_ETCD_PRUNE:-false}" == "true" ]]; then
+    if [[ "${K8S_ETCD_PRUNE:-true}" == "true" ]]; then
+      echo >&2 ":: Cleaning all existing etcd database."
       sudo rm -rfv /var/lib/etcd/
     fi
     sudo mkdir -p /etc/etcd /var/lib/etcd
