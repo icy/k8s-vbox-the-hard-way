@@ -352,10 +352,6 @@ _k8s_bootstrapping_lb_haproxy() {
     HAPROXY_K8S_APIS="$HAPROXY_K8S_APIS\n    server $_node $IP_PREFIX.${_node#*-}:6443 check port 80"
   done
 
-  while read -r _file; do
-    \mv --backup=numbered -fv "$_file" "$_file.backup"
-  done < <(find "$D_ETC/haproxy/" -maxdepth 1 -mindepth 1 -type f -iname "*.cfg")
-
   for _file in "$D_ETC/haproxy/"*.cfg.in; do
     _envsubst "${_file}" "${_file%.*}" || return
   done
