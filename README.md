@@ -200,12 +200,12 @@ would give you an idea of what's happening in the system.
 
     $ hisk8s.sh _vagrant destroy -f
 
-Except for your custom environment `etc/custom.env.sh` and caches directory,
+Except your custom environment `etc/custom.env.sh` and caches directory,
 you can delete all newly created files
 
     $ cp etc/custom.env.sh ./my.custom.env.sh
     $ rm -rf etc/ ca/
-    $ git reset --hard # Restore to original scripts / configurations
+    $ git reset --hard # Restore the original scripts / configurations
 
 **Important notes**:
 The script is stateless and it doesn't know if you have decreased the
