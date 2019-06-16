@@ -85,6 +85,28 @@ env_setup() {
   __ENV_SETUP__=1
   readonly __ENV_SETUP__
 
+  # Supporting Platform.
+  # Based on buom's idea
+  #   https://gist.github.com/icy/87d0b5f2012e229f39353406d1d1743e
+
+  __PLATFORM__="$(uname | tr "[:upper:]" "[:lower:]")"
+  readonly __PLATFORM__
+
+  case "$__PLATFORM__" in
+  "linux")
+    ;;
+
+  "darwin")
+    shopt -s expand_aliases
+    alias sed=gsed
+    alias mv=gmv
+    ;;
+
+  *)
+    echo >&2 ":: ${FUNCNAME[0]}: Unsupported platform '$__PLATFORM__'."
+    return 1
+  esac
+
   # K8s and vbox environments
 
   # Fast
@@ -1025,13 +1047,13 @@ _smoke_test_control_plane() {
   curl -s -H \"Host: kubernetes.default.svc.cluster.local\" -i http://127.0.0.1/healthz >/dev/null
 }
 
-_cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
+_cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_<platform>-amd64
   if command -v cfssl >/dev/null; then
     cfssl "$@"
     return
   fi
 
-  local _c="$D_CACHES/cfssl_linux-amd64"
+  local _c="$D_CACHES/cfssl_${__PLATFORM__}-amd64"
   if command -v "$_c" >/dev/null; then
     "$_c" "$@"
   else
@@ -1040,13 +1062,13 @@ _cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
   fi
 }
 
-_cfssljson() { #public: A wrapper of cfssljson, fallback to $D_CACHES/cfssljson_linux-amd64
+_cfssljson() { #public: A wrapper of cfssljson, fallback to $D_CACHES/cfssljson_<platform>-amd64
   if command -v cfssljson >/dev/null; then
     cfssljson "$@"
     return
   fi
 
-  local _c="$D_CACHES/cfssljson_linux-amd64"
+  local _c="$D_CACHES/cfssljson_${__PLATFORM__}-amd64"
   if command -v "$_c" >/dev/null; then
     "$_c" "$@"
   else
@@ -1108,17 +1130,18 @@ _wget_cfssl() { #private: Download cfssl binary to $D_CACHES/ directory
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
   __wget \
-    "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64" \
-    "https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64"
-  chmod -c 755 {cfssl,cfssljson}_linux-amd64
+    "https://pkg.cfssl.org/R1.2/cfssl_${__PLATFORM__}-amd64" \
+    "https://pkg.cfssl.org/R1.2/cfssljson_${__PLATFORM__}-amd64"
+  chmod 755 {cfssl,cfssljson}_"${__PLATFORM__}"-amd64
 }
 
+# Notes: Helm is executed on client' machine.
 _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz
-  tar xfvz helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz linux-amd64/helm
-  mv linux-amd64/helm "./helm-${K8S_HELM_TAG}"
+  __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-"${__PLATFORM__}"-amd64.tar.gz
+  tar xfvz helm-"${K8S_HELM_TAG}"-"${__PLATFORM__}"-amd64.tar.gz "${__PLATFORM__}"-amd64/helm
+  mv "${__PLATFORM__}"-amd64/helm "./helm-${K8S_HELM_TAG}"
   chmod 755 "./helm-${K8S_HELM_TAG}"
   ls -la helm-*
 }
@@ -1126,8 +1149,8 @@ _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
 _wget_kubectl() { #private: Download kubectl binary to $D_CACHES/ directory.
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget -O "./kubectl-${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/linux/amd64/kubectl
-  chmod -c 755 "./kubectl-${K8S_BUNDLE_TAG}"
+  __wget -O "./kubectl-${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/"${__PLATFORM__}"/amd64/kubectl
+  chmod 755 "./kubectl-${K8S_BUNDLE_TAG}"
   ls -la kubectl-*
 }
 
@@ -1254,6 +1277,7 @@ __require() {
     sort \
     sed \
     tar \
+    tr \
   "
   for _c in ${*:-$_commons}; do
     command -V "$_c" > /dev/null || return

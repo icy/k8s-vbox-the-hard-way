@@ -3,7 +3,7 @@
 Scripts that follow
   [k8s the hardway](https://github.com/kelseyhightower/kubernetes-the-hard-way)
 to bootstrap a k8s cluster in VirtualBox environment with Vagrant.
-This scripts only works on Linux 64-bit machines.
+This scripts only works on Linux / MacOS 64-bit machines.
 New cluster has the following components
 
     Bundle version:           v1.12.0
@@ -255,4 +255,4 @@ This prints the definition of the `_test` method.
 * `@hungdo` (Telegram) for testing and reporting the issue
   (9b2391d1fa41a985acc158c73a686a4485b25bf0)
 * `@buomQ` (Telegram) for testing and reporting some issue
-  (network provisioning, helm)
+  (network provisioning, helm) on MacOS systems.
