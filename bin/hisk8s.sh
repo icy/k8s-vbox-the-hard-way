@@ -696,8 +696,9 @@ _wget_etcd() {
 # Requirement: _k8s_bootstrapping_lb
 _k8s_bootstrapping_etcd() {
   _remote() {
-    tar -xvf etcd-${ETCD_TAG}-linux-amd64.tar.gz
-    sudo mv etcd-${ETCD_TAG}-linux-amd64/etcd* /usr/local/bin/
+    tar -xvf "etcd-${ETCD_TAG}-linux-amd64.tar.gz"
+    # shellcheck disable=2033
+    sudo mv "etcd-${ETCD_TAG}-linux-amd64"/etcd* /usr/local/bin/
 
     sudo systemctl stop etcd
     if [[ "${K8S_ETCD_PRUNE:-true}" == "true" ]]; then
@@ -722,6 +723,7 @@ _k8s_bootstrapping_etcd() {
 
     _rsync -rav "$D_CACHES/etcd/" "$_node":~/
     ETCD_NAME="$_node"
+    # shellcheck disable=2034
     INTERNAL_IP="${IP_PREFIX}.${ETCD_NAME#*-}"
 
     ETC_NODES=""
@@ -791,7 +793,7 @@ _k8s_bootstrapping_control_plane() {
     echo ":: Bootstrapping control plane on $_node"
 
     _rsync -rav "$D_CACHES/controller/" "$_node":~/
-    _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
+    _rsync -rav "$D_CACHES/kubectl-linux-${K8S_BUNDLE_TAG}" $_node:~/kubectl
 
     ETCD_NODES=""
     for _jnode in $CONTROLLERS; do
@@ -939,7 +941,7 @@ _k8s_bootstrapping_worker() {
     _envsubst "$D_ETC/kubelet-config.yaml.in"         "$D_ETC/$_node.kubelet-config.yaml"
 
     _rsync -rapv "$D_CACHES/worker/" $_node:~/
-    _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
+    _rsync -rav  "$D_CACHES/kubectl-linux-${K8S_BUNDLE_TAG}" $_node:~/kubectl
     _rsync -av \
       "$D_ETC/containerd.config.toml" \
       "$D_ETC/containerd.service" \
@@ -1083,7 +1085,7 @@ _kubectl() { #public: A wrapper of kubectl, fallback to $D_CACHES/kubectl-*
     kubectl --context="$MY_CLUSTER_NAME" "$@"
     return
   fi
-  local _c_kubectl="$D_CACHES/kubectl-${K8S_BUNDLE_TAG}"
+  local _c_kubectl="$D_CACHES/kubectl-${__PLATFORM__}-${K8S_BUNDLE_TAG}"
   if command -v "$_c_kubectl" >/dev/null; then
     "$_c_kubectl" "$@"
   else
@@ -1149,8 +1151,17 @@ _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
 _wget_kubectl() { #private: Download kubectl binary to $D_CACHES/ directory.
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget -O "./kubectl-${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/"${__PLATFORM__}"/amd64/kubectl
-  chmod 755 "./kubectl-${K8S_BUNDLE_TAG}"
+
+  __wget -O "./kubectl-linux-${K8S_BUNDLE_TAG}" \
+    https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/linux/amd64/kubectl
+
+  if [[ "${__PLATFORM__}" == "darwin" ]]; then
+    __wget -O "./kubectl-darwin-${K8S_BUNDLE_TAG}" \
+      https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/darwin/amd64/kubectl
+  fi
+
+  chmod 755 "./kubectl-linux-${K8S_BUNDLE_TAG}" "./kubectl-${__PLATFORM__}-${K8S_BUNDLE_TAG}"
+
   ls -la kubectl-*
 }
 
