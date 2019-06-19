@@ -35,9 +35,9 @@ _vagrant() { #public: A wrapper for `vagrant` loop on all nodes. E.g, `_vagrant 
 
 _ssh_config_update_all() {
   _ssh_config_generate > "$F_SSH_CONFIG.tmp"
-  mv -fv "$F_SSH_CONFIG.tmp" "$F_SSH_CONFIG"
+  $__MV -fv "$F_SSH_CONFIG.tmp" "$F_SSH_CONFIG"
   _ssh_keyscan > "$F_SSH_KNOWN_HOSTS.tmp"
-  mv -fv "$F_SSH_KNOWN_HOSTS.tmp" "$F_SSH_KNOWN_HOSTS"
+  $__MV -fv "$F_SSH_KNOWN_HOSTS.tmp" "$F_SSH_KNOWN_HOSTS"
 }
 
 _ssh_config_generate() {
@@ -94,18 +94,21 @@ env_setup() {
 
   case "$__PLATFORM__" in
   "linux")
+    __SED="sed"
+    __MV="mv"
     ;;
 
   "darwin")
-    shopt -s expand_aliases
-    alias sed=gsed
-    alias mv=gmv
+    __SED="gsed"
+    __MV="gmv"
     ;;
 
   *)
     echo >&2 ":: ${FUNCNAME[0]}: Unsupported platform '$__PLATFORM__'."
     return 1
   esac
+
+  readonly __SED __MV
 
   # K8s and vbox environments
 
@@ -388,7 +391,7 @@ _k8s_bootstrapping_lb_haproxy() {
   done
 
   LC_ALL=C cat "$D_ETC/haproxy"/*.cfg > "$D_ETC/haproxy.cfg" || return
-  sed -i -e 's#\\n#\n#g' "$D_ETC/haproxy.cfg"
+  $__SED -i -e 's#\\n#\n#g' "$D_ETC/haproxy.cfg"
 
   _rsync "$D_ETC/haproxy.cfg" "$LOAD_BALANCER":~/haproxy.cfg
   _execute_remote : "$LOAD_BALANCER"
@@ -962,7 +965,7 @@ _k8s_bootstrapping_worker() {
 
 _envsubst() {
   echo ":: Creating file $2 from $1"
-  echo "$2" >> "$D_ETC/envsubst.list"
+  # echo "$2" >> "$D_ETC/envsubst.list"
   envsubst < "$1" > "$2"
   if grep -sqE '\${.+}' "$2"; then
     return 1
@@ -1143,7 +1146,7 @@ _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
   cd "$D_CACHES/" || return
   __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-"${__PLATFORM__}"-amd64.tar.gz
   tar xfvz helm-"${K8S_HELM_TAG}"-"${__PLATFORM__}"-amd64.tar.gz "${__PLATFORM__}"-amd64/helm
-  mv "${__PLATFORM__}"-amd64/helm "./helm-${K8S_HELM_TAG}"
+  $__MV "${__PLATFORM__}"-amd64/helm "./helm-${K8S_HELM_TAG}"
   chmod 755 "./helm-${K8S_HELM_TAG}"
   ls -la helm-*
 }
@@ -1286,7 +1289,8 @@ __require() {
     curl \
     column \
     sort \
-    sed \
+    $__SED \
+    $__MV \
     tar \
     tr \
   "
