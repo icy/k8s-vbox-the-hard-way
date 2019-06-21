@@ -34,9 +34,21 @@ Table of contents
 
 ### Installing basic tools
 
+On Linux:
+
 * VirtualBox (`pacman -S virtualbox`). Also make sure the user that
   executes this script belongs to the group `vboxusers`.
 * Vagrant (`pacman -S vagrant`)
+* coreutils and `getttext` packages (`pacman -S gettext`)
+
+On MacOS:
+
+    brew cask install virtualbox
+    brew cask install vagrant
+    brew install coreutils
+    brew install gnu-sed
+    brew install gettext
+    brew link --force gettext
 
 The script download and store the following tools in local cache directory:
 
