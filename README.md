@@ -139,7 +139,7 @@ in your default binaries search path.
 
     $ hisk8s.sh _wget_helm # optionally, binary saved in caches/
     $ hisk8s.sh _helm_init
-    $ hisk8s.sh _test_hem
+    $ hisk8s.sh _test_helm
 
 After this command, you would get the following error
 
