@@ -139,7 +139,7 @@ in your default binaries search path.
 
     $ hisk8s.sh _wget_helm # optionally, binary saved in caches/
     $ hisk8s.sh _helm_init
-    $ hisk8s.sh _test_helm
+    $ hisk8s.sh _helm_test
 
 After this command, you would get the following error
 
@@ -151,11 +151,11 @@ the following command
     $ hisk8s.sh _kubectl get pods -n kube-system
 
 to see that your `tiller-deploy-*` pods are running well. Then you try
-to execute `_test_helm` again
+to execute `_helm_test` again
 
     $ hisk8s.sh _kubectl get pods -n kube-system|grep tiller
     tiller-deploy-865b88d89-xf2s4      1/1     Running   0          4m10s
-    $ hisk8s.sh _test_helm
+    $ hisk8s.sh _helm_test
     $ hisk8s.sh _helm list
     NAME    REVISION        UPDATED                         STATUS          CHART           APP VERSION     NAMESPACE
     empty   1               Sun Jan 20 14:39:19 2019        DEPLOYED        empty-0.1.0     1.0             default

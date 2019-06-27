@@ -1255,8 +1255,7 @@ _test() { #public: Default test (See README#getting-started). Create new cluster
   _welcome
 }
 
-_test_helm() { #public: Intsall helm and test helm/{empty,traefik}
-  _helm_init
+_helm_test() { #public: Intsall helm and test helm/{empty,traefik}
   _helm install -n empty "$D_ROOT"/helm/empty
   _helm install -n traefik "$D_ROOT"/helm/traefik
   _helm list
