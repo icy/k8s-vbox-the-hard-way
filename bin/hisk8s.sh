@@ -35,9 +35,9 @@ _vagrant() { #public: A wrapper for `vagrant` loop on all nodes. E.g, `_vagrant 
 
 _ssh_config_update_all() {
   _ssh_config_generate > "$F_SSH_CONFIG.tmp"
-  mv -fv "$F_SSH_CONFIG.tmp" "$F_SSH_CONFIG"
+  $__MV -fv "$F_SSH_CONFIG.tmp" "$F_SSH_CONFIG"
   _ssh_keyscan > "$F_SSH_KNOWN_HOSTS.tmp"
-  mv -fv "$F_SSH_KNOWN_HOSTS.tmp" "$F_SSH_KNOWN_HOSTS"
+  $__MV -fv "$F_SSH_KNOWN_HOSTS.tmp" "$F_SSH_KNOWN_HOSTS"
 }
 
 _ssh_config_generate() {
@@ -84,6 +84,31 @@ env_setup() {
 
   __ENV_SETUP__=1
   readonly __ENV_SETUP__
+
+  # Supporting Platform.
+  # Based on buom's idea
+  #   https://gist.github.com/icy/87d0b5f2012e229f39353406d1d1743e
+
+  __PLATFORM__="$(uname | tr "[:upper:]" "[:lower:]")"
+  readonly __PLATFORM__
+
+  case "$__PLATFORM__" in
+  "linux")
+    __SED="sed"
+    __MV="mv"
+    ;;
+
+  "darwin")
+    __SED="gsed"
+    __MV="gmv"
+    ;;
+
+  *)
+    echo >&2 ":: ${FUNCNAME[0]}: Unsupported platform '$__PLATFORM__'."
+    return 1
+  esac
+
+  readonly __SED __MV
 
   # K8s and vbox environments
 
@@ -366,7 +391,7 @@ _k8s_bootstrapping_lb_haproxy() {
   done
 
   LC_ALL=C cat "$D_ETC/haproxy"/*.cfg > "$D_ETC/haproxy.cfg" || return
-  sed -i -e 's#\\n#\n#g' "$D_ETC/haproxy.cfg"
+  $__SED -i -e 's#\\n#\n#g' "$D_ETC/haproxy.cfg"
 
   _rsync "$D_ETC/haproxy.cfg" "$LOAD_BALANCER":~/haproxy.cfg
   _execute_remote : "$LOAD_BALANCER"
@@ -674,8 +699,9 @@ _wget_etcd() {
 # Requirement: _k8s_bootstrapping_lb
 _k8s_bootstrapping_etcd() {
   _remote() {
-    tar -xvf etcd-${ETCD_TAG}-linux-amd64.tar.gz
-    sudo mv etcd-${ETCD_TAG}-linux-amd64/etcd* /usr/local/bin/
+    tar -xvf "etcd-${ETCD_TAG}-linux-amd64.tar.gz"
+    # shellcheck disable=2033
+    sudo mv "etcd-${ETCD_TAG}-linux-amd64"/etcd* /usr/local/bin/
 
     sudo systemctl stop etcd
     if [[ "${K8S_ETCD_PRUNE:-true}" == "true" ]]; then
@@ -700,6 +726,7 @@ _k8s_bootstrapping_etcd() {
 
     _rsync -rav "$D_CACHES/etcd/" "$_node":~/
     ETCD_NAME="$_node"
+    # shellcheck disable=2034
     INTERNAL_IP="${IP_PREFIX}.${ETCD_NAME#*-}"
 
     ETC_NODES=""
@@ -769,7 +796,7 @@ _k8s_bootstrapping_control_plane() {
     echo ":: Bootstrapping control plane on $_node"
 
     _rsync -rav "$D_CACHES/controller/" "$_node":~/
-    _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
+    _rsync -rav "$D_CACHES/kubectl-linux-${K8S_BUNDLE_TAG}" $_node:~/kubectl
 
     ETCD_NODES=""
     for _jnode in $CONTROLLERS; do
@@ -917,7 +944,7 @@ _k8s_bootstrapping_worker() {
     _envsubst "$D_ETC/kubelet-config.yaml.in"         "$D_ETC/$_node.kubelet-config.yaml"
 
     _rsync -rapv "$D_CACHES/worker/" $_node:~/
-    _rsync -rav  "$D_CACHES/kubectl-${K8S_BUNDLE_TAG}" $_node:~/kubectl
+    _rsync -rav  "$D_CACHES/kubectl-linux-${K8S_BUNDLE_TAG}" $_node:~/kubectl
     _rsync -av \
       "$D_ETC/containerd.config.toml" \
       "$D_ETC/containerd.service" \
@@ -938,7 +965,7 @@ _k8s_bootstrapping_worker() {
 
 _envsubst() {
   echo ":: Creating file $2 from $1"
-  echo "$2" >> "$D_ETC/envsubst.list"
+  # echo "$2" >> "$D_ETC/envsubst.list"
   envsubst < "$1" > "$2"
   if grep -sqE '\${.+}' "$2"; then
     return 1
@@ -1025,13 +1052,13 @@ _smoke_test_control_plane() {
   curl -s -H \"Host: kubernetes.default.svc.cluster.local\" -i http://127.0.0.1/healthz >/dev/null
 }
 
-_cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
+_cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_<platform>-amd64
   if command -v cfssl >/dev/null; then
     cfssl "$@"
     return
   fi
 
-  local _c="$D_CACHES/cfssl_linux-amd64"
+  local _c="$D_CACHES/cfssl_${__PLATFORM__}-amd64"
   if command -v "$_c" >/dev/null; then
     "$_c" "$@"
   else
@@ -1040,13 +1067,13 @@ _cfssl() { #public: A wrapper of cfssl, fallback to $D_CACHES/cfssl_linux-amd64
   fi
 }
 
-_cfssljson() { #public: A wrapper of cfssljson, fallback to $D_CACHES/cfssljson_linux-amd64
+_cfssljson() { #public: A wrapper of cfssljson, fallback to $D_CACHES/cfssljson_<platform>-amd64
   if command -v cfssljson >/dev/null; then
     cfssljson "$@"
     return
   fi
 
-  local _c="$D_CACHES/cfssljson_linux-amd64"
+  local _c="$D_CACHES/cfssljson_${__PLATFORM__}-amd64"
   if command -v "$_c" >/dev/null; then
     "$_c" "$@"
   else
@@ -1061,7 +1088,7 @@ _kubectl() { #public: A wrapper of kubectl, fallback to $D_CACHES/kubectl-*
     kubectl --context="$MY_CLUSTER_NAME" "$@"
     return
   fi
-  local _c_kubectl="$D_CACHES/kubectl-${K8S_BUNDLE_TAG}"
+  local _c_kubectl="$D_CACHES/kubectl-${__PLATFORM__}-${K8S_BUNDLE_TAG}"
   if command -v "$_c_kubectl" >/dev/null; then
     "$_c_kubectl" "$@"
   else
@@ -1108,17 +1135,18 @@ _wget_cfssl() { #private: Download cfssl binary to $D_CACHES/ directory
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
   __wget \
-    "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64" \
-    "https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64"
-  chmod -c 755 {cfssl,cfssljson}_linux-amd64
+    "https://pkg.cfssl.org/R1.2/cfssl_${__PLATFORM__}-amd64" \
+    "https://pkg.cfssl.org/R1.2/cfssljson_${__PLATFORM__}-amd64"
+  chmod 755 {cfssl,cfssljson}_"${__PLATFORM__}"-amd64
 }
 
+# Notes: Helm is executed on client' machine.
 _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz
-  tar xfvz helm-"${K8S_HELM_TAG}"-linux-amd64.tar.gz linux-amd64/helm
-  mv linux-amd64/helm "./helm-${K8S_HELM_TAG}"
+  __wget https://storage.googleapis.com/kubernetes-helm/helm-"${K8S_HELM_TAG}"-"${__PLATFORM__}"-amd64.tar.gz
+  tar xfvz helm-"${K8S_HELM_TAG}"-"${__PLATFORM__}"-amd64.tar.gz "${__PLATFORM__}"-amd64/helm
+  $__MV "${__PLATFORM__}"-amd64/helm "./helm-${K8S_HELM_TAG}"
   chmod 755 "./helm-${K8S_HELM_TAG}"
   ls -la helm-*
 }
@@ -1126,8 +1154,17 @@ _wget_helm() { #private: Download helm binary to $D_CACHES/ directory
 _wget_kubectl() { #private: Download kubectl binary to $D_CACHES/ directory.
   mkdir -pv "$D_CACHES/"
   cd "$D_CACHES/" || return
-  __wget -O "./kubectl-${K8S_BUNDLE_TAG}" https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/linux/amd64/kubectl
-  chmod -c 755 "./kubectl-${K8S_BUNDLE_TAG}"
+
+  __wget -O "./kubectl-linux-${K8S_BUNDLE_TAG}" \
+    https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/linux/amd64/kubectl
+
+  if [[ "${__PLATFORM__}" == "darwin" ]]; then
+    __wget -O "./kubectl-darwin-${K8S_BUNDLE_TAG}" \
+      https://storage.googleapis.com/kubernetes-release/release/"${K8S_BUNDLE_TAG}"/bin/darwin/amd64/kubectl
+  fi
+
+  chmod 755 "./kubectl-linux-${K8S_BUNDLE_TAG}" "./kubectl-${__PLATFORM__}-${K8S_BUNDLE_TAG}"
+
   ls -la kubectl-*
 }
 
@@ -1218,8 +1255,7 @@ _test() { #public: Default test (See README#getting-started). Create new cluster
   _welcome
 }
 
-_test_helm() { #public: Intsall helm and test helm/{empty,traefik}
-  _helm_init
+_helm_test() { #public: Intsall helm and test helm/{empty,traefik}
   _helm install -n empty "$D_ROOT"/helm/empty
   _helm install -n traefik "$D_ROOT"/helm/traefik
   _helm list
@@ -1252,8 +1288,10 @@ __require() {
     curl \
     column \
     sort \
-    sed \
+    $__SED \
+    $__MV \
     tar \
+    tr \
   "
   for _c in ${*:-$_commons}; do
     command -V "$_c" > /dev/null || return

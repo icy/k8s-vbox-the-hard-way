@@ -3,7 +3,7 @@
 Scripts that follow
   [k8s the hardway](https://github.com/kelseyhightower/kubernetes-the-hard-way)
 to bootstrap a k8s cluster in VirtualBox environment with Vagrant.
-This scripts only works on Linux 64-bit machines.
+This scripts only works on Linux / MacOS 64-bit machines.
 New cluster has the following components
 
     Bundle version:           v1.12.0
@@ -34,9 +34,21 @@ Table of contents
 
 ### Installing basic tools
 
+On Linux:
+
 * VirtualBox (`pacman -S virtualbox`). Also make sure the user that
   executes this script belongs to the group `vboxusers`.
 * Vagrant (`pacman -S vagrant`)
+* coreutils and `getttext` packages (`pacman -S gettext`)
+
+On MacOS:
+
+    brew cask install virtualbox
+    brew cask install vagrant
+    brew install coreutils
+    brew install gnu-sed
+    brew install gettext
+    brew link --force gettext
 
 The script download and store the following tools in local cache directory:
 
@@ -127,7 +139,7 @@ in your default binaries search path.
 
     $ hisk8s.sh _wget_helm # optionally, binary saved in caches/
     $ hisk8s.sh _helm_init
-    $ hisk8s.sh _test_hem
+    $ hisk8s.sh _helm_test
 
 After this command, you would get the following error
 
@@ -139,11 +151,11 @@ the following command
     $ hisk8s.sh _kubectl get pods -n kube-system
 
 to see that your `tiller-deploy-*` pods are running well. Then you try
-to execute `_test_helm` again
+to execute `_helm_test` again
 
     $ hisk8s.sh _kubectl get pods -n kube-system|grep tiller
     tiller-deploy-865b88d89-xf2s4      1/1     Running   0          4m10s
-    $ hisk8s.sh _test_helm
+    $ hisk8s.sh _helm_test
     $ hisk8s.sh _helm list
     NAME    REVISION        UPDATED                         STATUS          CHART           APP VERSION     NAMESPACE
     empty   1               Sun Jan 20 14:39:19 2019        DEPLOYED        empty-0.1.0     1.0             default
@@ -255,4 +267,4 @@ This prints the definition of the `_test` method.
 * `@hungdo` (Telegram) for testing and reporting the issue
   (9b2391d1fa41a985acc158c73a686a4485b25bf0)
 * `@buomQ` (Telegram) for testing and reporting some issue
-  (network provisioning, helm)
+  (network provisioning, helm) on MacOS systems.
