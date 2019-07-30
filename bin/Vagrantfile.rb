@@ -26,7 +26,7 @@ Vagrant.configure("2") do |config|
   config.vm.hostname = "#{hostname}.internal"
   config.vm.define "#{hostname}"
 
-  puts "SSH port: #{ssh_port}, Internal IP: #{internal_ip} <-- #{hostname}"
+  STDERR.puts "SSH port: #{ssh_port}, Internal IP: #{internal_ip} <-- #{hostname}"
   config.vm.network "forwarded_port", guest: 22, host: ssh_port, id: "ssh"
   config.vm.network "private_network", ip: internal_ip, virtualbox__intnet: (ENV["VBOX_PRIVATE_NETWORK_NAME"] || "testing")
   if v_role == "lb"
