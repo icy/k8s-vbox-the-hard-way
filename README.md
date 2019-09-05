@@ -38,7 +38,10 @@ On Linux:
 
 * VirtualBox (`pacman -S virtualbox`). Also make sure the user that
   executes this script belongs to the group `vboxusers`.
-* Vagrant (`pacman -S vagrant`)
+* Vagrant (`pacman -S vagrant`). Pre download a box for launching new machines
+
+      vagrant box add ubuntu/bionic64
+
 * coreutils and `getttext` packages (`pacman -S gettext`)
 
 On MacOS:
