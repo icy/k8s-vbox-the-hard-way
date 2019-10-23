@@ -341,6 +341,7 @@ _execute_remote() {
 
 _k8s_bootstrapping_lb_vboxdns() {
   _remote() {
+    echo Y | sudo pacman -Sy
     echo Y | sudo pacman -S ruby ruby-dev build-essential
     echo "gem: --no-rdoc --no-ri -V" | sudo tee >/dev/null /etc/gemrc
     sudo gem install rubydns
