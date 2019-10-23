@@ -15,7 +15,7 @@ ExecStart=/usr/local/bin/kube-controller-manager \
   --cluster-cidr=${IP_K8S_POD_RANGE} \
   --service-cluster-ip-range=${IP_K8S_CLUSTER_RANGE} \
   --use-service-account-credentials=true \
-  --v=2
+  --v=${K8S_VERBOSE_LEVEL}
 Restart=on-failure
 RestartSec=5
 

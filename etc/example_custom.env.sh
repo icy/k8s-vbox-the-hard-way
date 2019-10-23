@@ -39,6 +39,9 @@ VAGRANT_PARALLEL=0 # Disable
 # Setting to true to force a removal (e.g., for a clean cluster.)
 K8S_ETCD_PRUNE=true
 
+# Debugging level, default to 4.
+K8S_VERBOSE_LEVEL=4
+
 # List of port for automatic mapping/forwarding from Load balancer
 # to on workers. This is useful when working witl NodePort services.
 # You can also add any port to `etc/haproxy/ports`.

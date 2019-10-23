@@ -140,6 +140,7 @@ env_setup() {
 
   # Remove /var/lib/etcd
   K8S_ETCD_PRUNE="false"
+  K8S_VERBOSE_LEVEL="4"
 
   IP_K8S_CLUSTER="10.32.0.1"
   # The address of CoreDNS service which is deployed with `_k8s_bootstrapping_coredns`.
@@ -809,10 +810,11 @@ _k8s_bootstrapping_control_plane() {
     # shellcheck disable=2034
     IP_KUBE_API_SERVER_ADVERTISE="${IP_PREFIX}.${_node#*-}"
 
+    _envsubst "$D_ETC/kube-scheduler.service.in"  "$D_ETC/${_node}.kube-scheduler.service" || return 1
     _envsubst "$D_ETC/kube-apiserver.service.in"  "$D_ETC/kube-apiserver.service" || return 1
     _envsubst "$D_ETC/kube-controller-manager.service.in" "$D_ETC/kube-controller-manager.service" || return 1
 
-    _rsync --rsync-path="sudo rsync" $D_ETC/kube-scheduler.service  $_node:/etc/systemd/system/kube-scheduler.service
+    _rsync --rsync-path="sudo rsync" $D_ETC/${_node}.kube-scheduler.service  $_node:/etc/systemd/system/kube-scheduler.service
     _rsync --rsync-path="sudo rsync" $D_ETC/kube-controller-manager.service  $_node:/etc/systemd/system/kube-controller-manager.service
     _rsync --rsync-path="sudo rsync" $D_ETC/kube-apiserver.service  $_node:/etc/systemd/system/kube-apiserver.service
 
@@ -919,7 +921,7 @@ _k8s_bootstrapping_worker() {
     sudo cp -fvu containerd.config.toml /etc/containerd/config.toml
     sudo cp -fuv containerd.service /etc/systemd/system/containerd.service
     sudo cp -fuv ${HOSTNAME}.kubelet-config.yaml /var/lib/kubelet/kubelet-config.yaml
-    sudo cp -fuv kubelet.service /etc/systemd/system/kubelet.service
+    sudo cp -fuv ${HOSTNAME}.kubelet.service /etc/systemd/system/kubelet.service
     sudo cp -fuv kube-proxy.kubeconfig /var/lib/kube-proxy/kubeconfig
     sudo cp -fuv kube-proxy-config.yaml /var/lib/kube-proxy/kube-proxy-config.yaml
     sudo cp -fuv ${HOSTNAME}.kube-proxy.service  /etc/systemd/system/kube-proxy.service
@@ -943,6 +945,7 @@ _k8s_bootstrapping_worker() {
     _envsubst "$D_ETC/10-bridge.conf.in"              "$D_ETC/$_node.10-bridge.conflist"
     _envsubst "$D_ETC/kube-proxy-config.yaml.in"      "$D_ETC/kube-proxy-config.yaml"
     _envsubst "$D_ETC/kubelet-config.yaml.in"         "$D_ETC/$_node.kubelet-config.yaml"
+    _envsubst "$D_ETC/kubelet.service.in"             "$D_ETC/$_node.kubelet.service"
 
     _rsync -rapv "$D_CACHES/worker/" $_node:~/
     _rsync -rav  "$D_CACHES/kubectl-linux-${K8S_BUNDLE_TAG}" $_node:~/kubectl
@@ -950,7 +953,7 @@ _k8s_bootstrapping_worker() {
       "$D_ETC/containerd.config.toml" \
       "$D_ETC/containerd.service" \
       "$D_ETC/${_node}.kubelet-config.yaml" \
-      "$D_ETC/kubelet.service" \
+      "$D_ETC/${_node}.kubelet.service" \
       "$D_ETC/kube-proxy-config.yaml" \
       "$D_ETC/${_node}.10-bridge.conflist" \
       "$D_ETC/99-loopback.conf" \
@@ -1345,6 +1348,7 @@ Kubernetes:
   Containerd version:   $_sig${CONTAINDERD_TAG}
   Kube configuration:   $_sig$D_ETC/.kube/config
   Kubectl wrapper:      $_sig$D_BIN/_kubectl
+  Debug level:          $_sig$K8S_VERBOSE_LEVEL
 
 DNS resolver:
   Address:              $_sig$IP_LB

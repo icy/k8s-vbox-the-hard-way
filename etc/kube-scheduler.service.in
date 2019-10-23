@@ -5,7 +5,7 @@ Documentation=https://github.com/kubernetes/kubernetes
 [Service]
 ExecStart=/usr/local/bin/kube-scheduler \
   --config=/etc/kubernetes/config/kube-scheduler.yaml \
-  --v=2
+  --v=${K8S_VERBOSE_LEVEL}
 Restart=on-failure
 RestartSec=5
 

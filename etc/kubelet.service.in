@@ -13,7 +13,7 @@ ExecStart=/usr/local/bin/kubelet \
   --kubeconfig=/var/lib/kubelet/kubeconfig \
   --network-plugin=cni \
   --register-node=true \
-  --v=2
+  --v=${K8S_VERBOSE_LEVEL}
 Restart=on-failure
 RestartSec=5
 
