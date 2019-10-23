@@ -9,6 +9,11 @@ Vagrant.configure("2") do |config|
 
   config.vm.box_check_update = false
 
+  # FIXME: when parallel mode is disabled, we can go with :box mode
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :machine
+  end
+
   # path/to/master-122/Vagrantfile --> sshport 100122
   v_basepath = File.basename(File.dirname(__FILE__))
   v_role, v_index = v_basepath.split("-")
